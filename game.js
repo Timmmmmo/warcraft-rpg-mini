@@ -19,20 +19,20 @@ var PATHS = { inner: [], outer: [] };
 
 // 职业
 var HEROES = {
-  warrior: { name:'战士', icon:'⚔️', color:'#ff1744', skin:'🗡️', range:0.6, type:'str', atkSpd:0.9, ultCd:25 },
-  archer: { name:'弓手', icon:'🏹', color:'#2979ff', skin:'🎯', range:1.05, type:'agi', atkSpd:0.45, ultCd:22 },
-  mage: { name:'法师', icon:'🔮', color:'#ffd600', skin:'✨', range:0.84, type:'int', atkSpd:0.7, ultCd:12 },
-  blademaster: { name:'剑圣', icon:'⚔️', color:'#ff5252', skin:'🗡️', range:0.66 },
-  mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', skin:'🔨', range:0.54 },
-  bloodmage: { name:'血法', icon:'🔥', color:'#d32f2f', skin:'🔥', range:0.75 },
-  windrunner: { name:'风行', icon:'💨', color:'#00e676', skin:'💨', range:1.2 },
-  shadowhunter: { name:'暗猎', icon:'🌑', color:'#7b1fa2', skin:'🗡️', range:0.99 },
-  frost: { name:'冰法', icon:'❄️', color:'#4fc3f7', skin:'❄️', range:0.9 },
-  storm: { name:'雷法', icon:'⚡', color:'#7c4dff', skin:'⚡', range:0.84 },
-  titan: { name:'泰坦', icon:'🏔️', color:'#ff8f00', skin:'🏔️', range:0.6 },
-  gale: { name:'疾风', icon:'🌪️', color:'#18ffff', skin:'🌪️', range:1.32 },
-  inferno: { name:'炎魔', icon:'🌋', color:'#ff6d00', skin:'🌋', range:0.84 },
-  phoenix: { name:'凤凰', icon:'🦚', color:'#ff4081', skin:'🦚', range:0.99 }
+  warrior: { name:'战士', icon:'⚔️', color:'#ff1744', skin:'🗡️', range:0.48, type:'str', atkSpd:0.9, ultCd:25 },
+  archer: { name:'弓手', icon:'🏹', color:'#2979ff', skin:'🎯', range:0.84, type:'agi', atkSpd:0.45, ultCd:22 },
+  mage: { name:'法师', icon:'🔮', color:'#ffd600', skin:'✨', range:0.672, type:'int', atkSpd:0.7, ultCd:12 },
+  blademaster: { name:'剑圣', icon:'⚔️', color:'#ff5252', skin:'🗡️', range:0.528 },
+  mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', skin:'🔨', range:0.432 },
+  bloodmage: { name:'血法', icon:'🔥', color:'#d32f2f', skin:'🔥', range:0.6 },
+  windrunner: { name:'风行', icon:'💨', color:'#00e676', skin:'💨', range:0.96 },
+  shadowhunter: { name:'暗猎', icon:'🌑', color:'#7b1fa2', skin:'🗡️', range:0.792 },
+  frost: { name:'冰法', icon:'❄️', color:'#4fc3f7', skin:'❄️', range:0.72 },
+  storm: { name:'雷法', icon:'⚡', color:'#7c4dff', skin:'⚡', range:0.672 },
+  titan: { name:'泰坦', icon:'🏔️', color:'#ff8f00', skin:'🏔️', range:0.48 },
+  gale: { name:'疾风', icon:'🌪️', color:'#18ffff', skin:'🌪️', range:1.056 },
+  inferno: { name:'炎魔', icon:'🌋', color:'#ff6d00', skin:'🌋', range:0.672 },
+  phoenix: { name:'凤凰', icon:'🦚', color:'#ff4081', skin:'🦚', range:0.792 }
 };
 
 var MONSTER_TYPES = {
@@ -66,6 +66,13 @@ var hero = {
 };
 
 var enemies = [], particles = [], effects = [], lastingEffects = [];
+// 被动技能描述
+var PASSIVE_DESC = {
+  str: '重击: 15%概率眩晕敌人0.5秒',
+  agi: '背刺: 20%概率造成双倍伤害',
+  int: '冰冻: 普攻减速敌人30%',
+  archer: '多重箭: 25%概率攻击2个目标'
+};
 var heroAnim = { bob: 0, frame: 0 };
 var showRangeTimer = 0;
 
@@ -471,7 +478,7 @@ Particle.prototype.draw = function() {
 };
 function addP(x,y,t,c,s) { particles.push(new Particle(x,y,t,c,s)); }
 
-// 自动攻击
+// 自动攻击 (带被动效果)
 function autoAtk() {
   hero.atkTimer += 0.016;
   var hd = getHeroData();
@@ -482,6 +489,9 @@ function autoAtk() {
   
   if (dungeonEnemy) {
     var dmg = Math.max(1, Math.floor(hero.atk * hero.buff));
+    // 被动效果
+    if (hd.type === 'agi' && Math.random() < 0.2) { dmg *= 2; addP(dungeonEnemy.x*W, dungeonEnemy.y*H-30, '背刺!', '#ff4444', 16); }
+    if (hd.type === 'archer' && Math.random() < 0.25) { dmg = Math.floor(dmg * 1.5); addP(dungeonEnemy.x*W, dungeonEnemy.y*H-30, '多重!', '#00e676', 16); }
     dungeonEnemy.hp -= dmg;
     addP(dungeonEnemy.x*W, dungeonEnemy.y*H-20, '-'+dmg, '#ffd700', 14);
     playSound('hit');
@@ -496,10 +506,59 @@ function autoAtk() {
     var d = dist(hp.x, hp.y, ex, ey);
     if (d < range && d < md) { md = d; target = e; }
   }
+  
   if (target) {
     var dmg = Math.max(1, Math.floor(hero.atk * hero.buff - target.def));
+    var tx = target.x*W, ty = target.y*H;
+    
+    // 攻击特效 - 子弹轨迹
+    var bulletColor = hd.color;
+    for (var b = 0; b < 3; b++) {
+      addP(hp.x + (tx-hp.x)*(0.2+b*0.3), hp.y + (ty-hp.y)*(0.2+b*0.3), '•', bulletColor, 8);
+    }
+    
+    // 被动效果
+    if (hd.type === 'str') {
+      // 力量: 15%眩晕
+      if (Math.random() < 0.15) {
+        target.spd *= 0.1; // 几乎停止
+        setTimeout(function() { if(target) target.spd *= 10; }, 500);
+        addP(tx, ty-25, '眩晕!', '#ffd700', 14);
+        effects.push(new Effect('small', tx, ty, '#ffd700', 15));
+      }
+    } else if (hd.type === 'agi') {
+      // 敏捷: 20%双倍
+      if (Math.random() < 0.2) {
+        dmg *= 2;
+        addP(tx, ty-25, '背刺!x2', '#ff4444', 16);
+      }
+    } else if (hd.type === 'int') {
+      // 智力: 减速30%
+      target.spd *= 0.7;
+      setTimeout(function() { if(target) target.spd /= 0.7; }, 1000);
+      addP(tx, ty-25, '减速!', '#4fc3f7', 12);
+    } else if (hd.type === 'archer') {
+      // 弓手: 25%多重攻击
+      if (Math.random() < 0.25) {
+        // 攻击另一个敌人
+        for (var i = 0; i < enemies.length; i++) {
+          var e2 = enemies[i];
+          if (e2 !== target) {
+            var d2 = dist(hp.x, hp.y, e2.x*W, e2.y*H);
+            if (d2 < range) {
+              var dmg2 = Math.max(1, Math.floor(hero.atk * hero.buff * 0.5 - e2.def));
+              e2.hp -= dmg2;
+              addP(e2.x*W, e2.y*H-15, '-'+dmg2, '#00e676', 12);
+              break;
+            }
+          }
+        }
+        addP(tx, ty-25, '多重箭!', '#00e676', 14);
+      }
+    }
+    
     target.hp -= dmg;
-    addP(target.x*W, target.y*H-15, '-'+dmg, hd.color, 12);
+    addP(tx, ty-15, '-'+dmg, hd.color, 12);
     playSound('hit');
   }
 }
@@ -635,6 +694,7 @@ function completeDungeon() {
   // Mark this level as completed
   var key = d.type + '_' + lvl;
   dungeonCompleted[key] = true;
+  showToast('通关: ' + d.name + ' Lv.' + lvl + ' ✓');
   if (dungeonLevels[d.type] === lvl && lvl < 10) dungeonLevels[d.type]++;
   dungeonEnemy = null; dungeonActive = null;
   playSound('kill');
@@ -763,6 +823,7 @@ function updateUI() {
   var hd = getHeroData();
   document.getElementById('class-skin').textContent = hd.skin;
   document.getElementById('class-name').textContent = hd.name;
+  document.getElementById('passive-skill').textContent = PASSIVE_DESC[hd.type] || '';
   document.getElementById('hp-bar').style.width = (hero.hp/hero.maxHp*100)+'%';
   document.getElementById('mp-bar').style.width = (hero.mp/hero.maxMp*100)+'%';
   document.getElementById('exp-bar').style.width = (hero.exp/hero.expNeed*100)+'%';
