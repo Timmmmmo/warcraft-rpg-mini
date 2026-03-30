@@ -1,925 +1,713 @@
 /**
- * 魔兽RPG塔防 - 英雄之路
- * 腾讯级品质小游戏 - 修复版
+ * 魔兽RPG - 无尽塔防 V2.0
+ * 参考魔兽争霸3 RPG地图"刷不完的怪"
+ * 军师+丞相联合出品
  */
 
-// ====== 游戏配置 ======
-const CONFIG = {
-  CANVAS_W: 400,
-  CANVAS_H: 600,
-  TOWER_COUNT: 5,
-  WAVE_INTERVAL: 25,
-  AUTO_ATK_INTERVAL: 0.8,
-  MAX_ENEMIES: 200  // 失败条件：超过200敌人
+// ====== 配置 ======
+const C = {
+  W: 400, H: 650,
+  MAX_ENEMIES: 150,
+  WAVE_CD: 28
 };
 
-// ====== 游戏状态 ======
+// ====== 状态 ======
 let canvas, ctx;
-let gameState = 'playing';
-let gold = 50;
-let wave = 1;
-let waveTimer = 5;  // 第一波更快
-let kills = 0;
-let screenShake = 0;
-let selectedTower = null;
-let selectedHero = 0;
-let lastTime = 0;
+let state = 'playing';
+let gold = 0, wave = 1, waveT = 5, kills = 0;
+let shake = 0;
+let lastT = 0;
 
-// ====== 职业系统 ======
-const CLASSES = {
-  warrior: { name: '战士', icon: '⚔️', color: '#4a90d9' },
-  archer: { name: '弓手', icon: '🏹', color: '#4caf50' },
-  blademaster: { name: '剑圣', icon: '⚡', color: '#66ccff' },
-  mountainking: { name: '山丘', icon: '🛡️', color: '#ffd700' },
-  bloodmage: { name: '血法', icon: '🔥', color: '#ff4444' },
-  windrunner: { name: '风行', icon: '💨', color: '#00e676' },
-  shadowhunter: { name: '暗猎', icon: '🌑', color: '#9c27b0' },
-  keeper: { name: '守护', icon: '🌿', color: '#795548' }
+// ====== 塔位 (5个: 左上、右上、左下、右下、中心) ======
+const TOWERS = [
+  { x: 60, y: 120, name: '左上', lv: 1 },
+  { x: 340, y: 120, name: '右上', lv: 1 },
+  { x: 60, y: 530, name: '左下', lv: 1 },
+  { x: 340, y: 530, name: '右下', lv: 1 },
+  { x: 200, y: 325, name: '中心', lv: 1 }
+];
+
+// ====== 路线 (内环+外环) ======
+const PATHS = {
+  inner: [ // 内环 - 矩形
+    {x:100,y:180}, {x:300,y:180}, {x:300,y:470}, {x:100,y:470}, {x:100,y:180}
+  ],
+  outer: [ // 外环 - 矩形
+    {x:30,y:60}, {x:370,y:60}, {x:370,y:590}, {x:30,y:590}, {x:30,y:60}
+  ]
 };
 
-// ====== 塔位系统 ======
-const TOWER_POSITIONS = [
-  { x: 80, y: 180, level: 1 },
-  { x: 320, y: 180, level: 1 },
-  { x: 80, y: 340, level: 1 },
-  { x: 320, y: 340, level: 1 },
-  { x: 200, y: 460, level: 1 }
-];
+// ====== 职业 ======
+const CLS = {
+  warrior: { name:'战士', icon:'⚔️', color:'#4a90d9', range:90, type:'melee' },
+  archer: { name:'弓手', icon:'🏹', color:'#4caf50', range:160, type:'ranged' },
+  mage: { name:'法师', icon:'🔮', color:'#9c27b0', range:130, type:'magic' },
+  // 一转
+  blademaster: { name:'剑圣', icon:'⚔️', color:'#66ccff', range:100, type:'melee', parent:'warrior' },
+  mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', range:85, type:'tank', parent:'warrior' },
+  bloodmage: { name:'血法', icon:'🔥', color:'#ff4444', range:120, type:'magic', parent:'warrior' },
+  windrunner: { name:'风行', icon:'💨', color:'#00e676', range:180, type:'ranged', parent:'archer' },
+  shadowhunter: { name:'暗猎', icon:'🌑', color:'#9c27b0', range:150, type:'assassin', parent:'archer' },
+  keeper: { name:'守护', icon:'🌿', color:'#795548', range:140, type:'summon', parent:'archer' },
+  // 二转
+  swordgod: { name:'剑神', icon:'⚡', color:'#00bcd4', range:110, type:'melee', tier:2 },
+  titan: { name:'泰坦', icon:'🏔️', color:'#ffc107', range:95, type:'tank', tier:2 },
+  inferno: { name:'炎魔', icon:'🌋', color:'#ff5722', range:130, type:'magic', tier:2 }
+};
 
-// ====== 路线系统 ======
-const PATHS = [
-  // 路线1: 左侧
-  [{x:0,y:80},{x:80,y:80},{x:80,y:160},{x:50,y:220},{x:80,y:280},{x:80,y:340},{x:50,y:400},{x:80,y:460},{x:120,y:520},{x:200,y:560},{x:200,y:620}],
-  // 路线2: 右侧
-  [{x:400,y:80},{x:320,y:80},{x:320,y:160},{x:350,y:220},{x:320,y:280},{x:320,y:340},{x:350,y:400},{x:320,y:460},{x:280,y:520},{x:200,y:560},{x:200,y:620}],
-  // 路线3: 中间(Boss)
-  [{x:200,y:0},{x:200,y:100},{x:200,y:200},{x:200,y:300},{x:200,y:400},{x:200,y:500},{x:200,y:620}]
-];
+// ====== 英雄 ======
+let hero = {
+  cls: 'warrior',
+  towerIdx: 4, // 中心
+  lv: 1, exp: 0, expNeed: 100,
+  hp: 120, maxHp: 120,
+  mp: 60, maxMp: 60,
+  atk: 18, def: 6,
+  atkSpd: 0.7, atkTimer: 0,
+  crit: 0.1, critDmg: 2.0,
+  promo: 0, // 转职次数
+  buff: 1.0,
+  skills: [
+    { name:'攻击', cd:0, maxCd:0.4, dmg:1.0, ic:'⚔️' },
+    { name:'旋风', cd:0, maxCd:4, dmg:2.2, ic:'🌀', aoe:100 },
+    { name:'治疗', cd:0, maxCd:8, heal:35, ic:'💚' },
+    { name:'大招', cd:0, maxCd:18, dmg:5.0, ic:'⚡', aoe:250 }
+  ]
+};
+
+function heroPos() { return TOWERS[hero.towerIdx]; }
 
 // ====== 数组 ======
-let heroes = [];
-let enemies = [];
-let particles = [];
-
-// ====== 英雄类 ======
-class Hero {
-  constructor(classType, towerIdx) {
-    this.classType = classType;
-    this.towerIdx = towerIdx;
-    this.level = 1;
-    this.exp = 0;
-    this.expNeed = 100;
-    this.hp = 100;
-    this.maxHp = 100;
-    this.mp = 50;
-    this.maxMp = 50;
-    this.atk = 20;
-    this.def = 5;
-    this.atkRange = 120;
-    this.atkTimer = 0;
-    this.skills = [
-      { name: '攻击', cd: 0, maxCd: 0.5, dmg: 1.0, icon: '⚔️' },
-      { name: '旋风', cd: 0, maxCd: 4, dmg: 2.0, icon: '🌀' },
-      { name: '治疗', cd: 0, maxCd: 8, heal: 40, icon: '💚' },
-      { name: '大招', cd: 0, maxCd: 20, dmg: 5.0, icon: '⚡' }
-    ];
-    this.promotionLevel = 0;
-    this.buff = 1.0;
-  }
-  
-  getPos() {
-    return { x: TOWER_POSITIONS[this.towerIdx].x, y: TOWER_POSITIONS[this.towerIdx].y };
-  }
-  
-  gainExp(amt) {
-    this.exp += amt;
-    while (this.exp >= this.expNeed) {
-      this.exp -= this.expNeed;
-      this.levelUp();
-    }
-  }
-  
-  levelUp() {
-    this.level++;
-    this.expNeed = Math.floor(100 * Math.pow(this.level, 1.15));
-    this.maxHp += 25;
-    this.hp = this.maxHp;
-    this.maxMp += 12;
-    this.mp = this.maxMp;
-    this.atk += 4;
-    this.def += 2;
-    
-    const pos = this.getPos();
-    addParticle(pos.x, pos.y - 35, 'LEVEL UP!', '#ffd700', 18);
-    
-    // 解锁新英雄槽
-    checkHeroSlots();
-    
-    // 转职提示
-    if (this.level === 10 && this.promotionLevel === 0) {
-      showPromotionOptions(this);
-    }
-  }
-  
-  autoAttack() {
-    this.atkTimer += 0.016;
-    const atkSpeed = 0.7;
-    if (this.atkTimer < atkSpeed) return;
-    this.atkTimer = 0;
-    
-    const pos = this.getPos();
-    let nearest = null, minDist = Infinity;
-    
-    for (const e of enemies) {
-      const dist = Math.hypot(e.x - pos.x, e.y - pos.y);
-      if (dist < this.atkRange && dist < minDist) {
-        minDist = dist;
-        nearest = e;
-      }
-    }
-    
-    if (nearest) {
-      const dmg = Math.max(1, Math.floor(this.atk * this.buff - nearest.def));
-      nearest.hp -= dmg;
-      addParticle(nearest.x, nearest.y - 15, '-' + dmg, CLASSES[this.classType].color, 12);
-    }
-  }
-  
-  useSkill(idx) {
-    const skill = this.skills[idx];
-    const costs = [5, 15, 10, 30];
-    if (skill.cd > 0 || this.mp < costs[idx]) return;
-    
-    skill.cd = skill.maxCd;
-    this.mp -= costs[idx];
-    
-    const pos = this.getPos();
-    
-    if (idx === 0) {
-      // Q: 单体攻击
-      let target = findNearest(pos, this.atkRange * 1.5);
-      if (target) {
-        const dmg = Math.max(1, Math.floor(this.atk * 1.5 * this.buff - target.def));
-        target.hp -= dmg;
-        addParticle(target.x, target.y - 15, '-' + dmg, '#ff6f00', 14);
-      }
-    } else if (idx === 1) {
-      // W: 范围攻击
-      for (const e of enemies) {
-        if (Math.hypot(e.x - pos.x, e.y - pos.y) < 100) {
-          const dmg = Math.max(1, Math.floor(this.atk * 2 * this.buff - e.def));
-          e.hp -= dmg;
-          addParticle(e.x, e.y - 15, '-' + dmg, '#4fc3f7', 14);
-        }
-      }
-      screenShake = 5;
-    } else if (idx === 2) {
-      // E: 治疗
-      this.hp = Math.min(this.maxHp, this.hp + skill.heal);
-      addParticle(pos.x, pos.y - 25, '+' + skill.heal, '#4caf50', 14);
-    } else if (idx === 3) {
-      // R: 大招
-      for (const e of enemies) {
-        const dmg = Math.max(1, Math.floor(this.atk * 5 * this.buff - e.def));
-        e.hp -= dmg;
-        addParticle(e.x, e.y - 15, '-' + dmg, '#ffd700', 16);
-      }
-      screenShake = 10;
-      addParticle(pos.x, pos.y - 40, '大招!', '#ffd700', 24);
-    }
-    
-    updateSkillUI();
-  }
-  
-  update() {
-    if (this.mp < this.maxMp) this.mp += 0.06;
-    for (const s of this.skills) if (s.cd > 0) s.cd -= 0.016;
-  }
-  
-  draw() {
-    const pos = this.getPos();
-    const cls = CLASSES[this.classType];
-    
-    // 攻击范围
-    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, this.atkRange, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // 英雄身体 - 圆形渐变
-    const grad = ctx.createRadialGradient(pos.x - 5, pos.y - 5, 2, pos.x, pos.y, 22);
-    grad.addColorStop(0, '#fff');
-    grad.addColorStop(0.3, cls.color);
-    grad.addColorStop(1, shadeColor(cls.color, -40));
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 22, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // 边框发光
-    ctx.shadowColor = cls.color;
-    ctx.shadowBlur = 10;
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    
-    // 职业图标
-    ctx.font = 'bold 16px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fff';
-    ctx.fillText(cls.icon, pos.x, pos.y);
-    
-    // 等级
-    ctx.font = 'bold 11px Arial';
-    ctx.fillStyle = '#ffd700';
-    ctx.fillText('Lv' + this.level, pos.x, pos.y + 32);
-    
-    // 血条
-    if (this.hp < this.maxHp) {
-      const w = 40;
-      ctx.fillStyle = '#333';
-      ctx.fillRect(pos.x - w/2, pos.y - 32, w, 5);
-      ctx.fillStyle = this.hp > this.maxHp * 0.5 ? '#4caf50' : '#f44336';
-      ctx.fillRect(pos.x - w/2, pos.y - 32, w * (this.hp / this.maxHp), 5);
-    }
-    
-    // 蓝条
-    const mw = 40;
-    ctx.fillStyle = '#222';
-    ctx.fillRect(pos.x - mw/2, pos.y - 26, mw, 3);
-    ctx.fillStyle = '#2196f3';
-    ctx.fillRect(pos.x - mw/2, pos.y - 26, mw * (this.mp / this.maxMp), 3);
-  }
-}
+let enemies = [], particles = [];
 
 // ====== 敌人类 ======
 class Enemy {
-  constructor(type, pathIdx, isBoss) {
+  constructor(path, type, boss) {
+    this.path = path === 'inner' ? PATHS.inner : PATHS.outer;
+    this.wp = 0;
+    this.x = this.path[0].x + (Math.random()-0.5)*20;
+    this.y = this.path[0].y + (Math.random()-0.5)*20;
+    this.boss = boss;
     this.type = type;
-    this.pathIdx = pathIdx;
-    this.waypoint = 0;
-    this.isBoss = isBoss;
     
-    const path = PATHS[pathIdx];
-    this.x = path[0].x;
-    this.y = path[0].y;
-    
-    const wm = 1 + wave * 0.12;
-    if (isBoss) {
-      this.hp = Math.floor((500 + wave * 150) * wm);
-      this.atk = 30 + wave * 5;
-      this.def = 15 + wave * 2;
-      this.speed = 0.7;
-      this.exp = 150 + wave * 40;
-      this.size = 35;
-      this.color = '#ffd600';
-      this.name = 'BOSS';
+    const wm = 1 + wave * 0.13;
+    if (boss) {
+      this.hp = (400 + wave*120) * wm;
+      this.atk = 25 + wave*4;
+      this.def = 12 + wave*2;
+      this.spd = 0.6;
+      this.exp = 120 + wave*30;
+      this.sz = 28;
+      this.col = '#ffd600';
     } else if (type === 'fast') {
-      this.hp = Math.floor((40 + wave * 12) * wm);
-      this.atk = 8 + wave * 2;
-      this.def = 3 + wave;
-      this.speed = 2.2;
-      this.exp = 20 + wave * 6;
-      this.size = 14;
-      this.color = '#00bcd4';
-      this.name = '快';
+      this.hp = (35 + wave*10) * wm;
+      this.atk = 6 + wave*2;
+      this.def = 2 + wave*0.5;
+      this.spd = path === 'inner' ? 2.5 : 1.8;
+      this.exp = 15 + wave*5;
+      this.sz = 12;
+      this.col = '#00bcd4';
     } else {
-      this.hp = Math.floor((70 + wave * 18) * wm);
-      this.atk = 10 + wave * 3;
-      this.def = 5 + wave;
-      this.speed = 1.0;
-      this.exp = 30 + wave * 10;
-      this.size = 18;
-      this.color = '#66bb6a';
-      this.name = '怪';
+      this.hp = (60 + wave*15) * wm;
+      this.atk = 8 + wave*2.5;
+      this.def = 4 + wave;
+      this.spd = path === 'inner' ? 1.6 : 1.0;
+      this.exp = 25 + wave*8;
+      this.sz = 16;
+      this.col = '#66bb6a';
     }
     this.maxHp = this.hp;
   }
   
   update() {
-    const path = PATHS[this.pathIdx];
-    if (this.waypoint >= path.length) return false; // 到达终点
-    
-    const target = path[this.waypoint];
-    const dx = target.x - this.x;
-    const dy = target.y - this.y;
-    const dist = Math.hypot(dx, dy);
-    
-    if (dist < this.speed + 3) {
-      this.waypoint++;
+    if (this.wp >= this.path.length) return false;
+    const t = this.path[this.wp];
+    const dx = t.x - this.x, dy = t.y - this.y;
+    const d = Math.hypot(dx, dy);
+    if (d < this.spd + 2) {
+      this.wp++;
+      if (this.wp >= this.path.length) return false;
     } else {
-      this.x += (dx / dist) * this.speed;
-      this.y += (dy / dist) * this.speed;
+      this.x += dx/d * this.spd;
+      this.y += dy/d * this.spd;
     }
-    
     return true;
   }
   
   draw() {
     // 影子
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
     ctx.beginPath();
-    ctx.ellipse(this.x, this.y + this.size * 0.7, this.size * 0.8, this.size * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(this.x, this.y + this.sz*.7, this.sz*.8, this.sz*.2, 0, 0, Math.PI*2);
     ctx.fill();
     
-    // 身体渐变
-    const grad = ctx.createRadialGradient(this.x - 3, this.y - 3, 2, this.x, this.y, this.size);
-    grad.addColorStop(0, lightenColor(this.color, 30));
-    grad.addColorStop(0.5, this.color);
-    grad.addColorStop(1, shadeColor(this.color, -30));
-    ctx.fillStyle = grad;
+    // 身体
+    const g = ctx.createRadialGradient(this.x-3, this.y-3, 2, this.x, this.y, this.sz);
+    g.addColorStop(0, lighten(this.col, 30));
+    g.addColorStop(.6, this.col);
+    g.addColorStop(1, shade(this.col, -30));
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.sz, 0, Math.PI*2);
     ctx.fill();
-    
-    // Boss光环
-    if (this.isBoss) {
-      ctx.save();
-      ctx.globalAlpha = 0.4 + Math.sin(Date.now() / 150) * 0.2;
-      ctx.strokeStyle = '#ff0000';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.size + 8, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
     
     // 眼睛
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(this.x - this.size * 0.3, this.y - this.size * 0.15, this.size * 0.2, 0, Math.PI * 2);
-    ctx.arc(this.x + this.size * 0.3, this.y - this.size * 0.15, this.size * 0.2, 0, Math.PI * 2);
+    ctx.arc(this.x-this.sz*.3, this.y-this.sz*.15, this.sz*.18, 0, Math.PI*2);
+    ctx.arc(this.x+this.sz*.3, this.y-this.sz*.15, this.sz*.18, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = '#000';
     ctx.beginPath();
-    ctx.arc(this.x - this.size * 0.3, this.y - this.size * 0.15, this.size * 0.1, 0, Math.PI * 2);
-    ctx.arc(this.x + this.size * 0.3, this.y - this.size * 0.15, this.size * 0.1, 0, Math.PI * 2);
+    ctx.arc(this.x-this.sz*.3, this.y-this.sz*.15, this.sz*.08, 0, Math.PI*2);
+    ctx.arc(this.x+this.sz*.3, this.y-this.sz*.15, this.sz*.08, 0, Math.PI*2);
     ctx.fill();
     
-    // 血条
-    const bw = this.size * 2;
-    ctx.fillStyle = '#222';
-    ctx.fillRect(this.x - bw/2, this.y - this.size - 10, bw, 5);
-    const hpRatio = this.hp / this.maxHp;
-    ctx.fillStyle = hpRatio > 0.5 ? '#4caf50' : hpRatio > 0.25 ? '#ff9800' : '#f44336';
-    ctx.fillRect(this.x - bw/2, this.y - this.size - 10, bw * hpRatio, 5);
-    
-    // Boss名字
-    if (this.isBoss) {
-      ctx.fillStyle = '#ff4444';
-      ctx.font = 'bold 12px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('BOSS', this.x, this.y - this.size - 15);
+    // Boss特效
+    if (this.boss) {
+      ctx.save();
+      ctx.globalAlpha = .3 + Math.sin(Date.now()/150)*.2;
+      ctx.strokeStyle = '#f00';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.sz+6, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
     }
+    
+    // 血条
+    const bw = this.sz*2;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(this.x-bw/2, this.y-this.sz-8, bw, 4);
+    ctx.fillStyle = this.hp/this.maxHp > .5 ? '#4caf50' : '#f44336';
+    ctx.fillRect(this.x-bw/2, this.y-this.sz-8, bw*(this.hp/this.maxHp), 4);
   }
 }
 
-// ====== 粒子类 ======
-class Particle {
-  constructor(x, y, text, color, size) {
-    this.x = x;
-    this.y = y;
-    this.text = text;
-    this.color = color;
-    this.size = size || 14;
-    this.vy = -2;
-    this.vx = (Math.random() - 0.5) * 2;
-    this.alpha = 1;
+// ====== 粒子 ======
+class Part {
+  constructor(x,y,txt,col,sz) {
+    this.x=x; this.y=y; this.txt=txt; this.col=col; this.sz=sz||14;
+    this.vy=-2; this.vx=(Math.random()-.5)*2; this.a=1;
   }
-  update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.vy += 0.08;
-    this.alpha -= 0.025;
-    return this.alpha > 0;
-  }
+  update() { this.x+=this.vx; this.y+=this.vy; this.vy+=.08; this.a-=.028; return this.a>0; }
   draw() {
-    ctx.save();
-    ctx.globalAlpha = this.alpha;
-    ctx.font = `bold ${this.size}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    ctx.strokeText(this.text, this.x, this.y);
-    ctx.fillStyle = this.color;
-    ctx.fillText(this.text, this.x, this.y);
+    ctx.save(); ctx.globalAlpha=this.a;
+    ctx.font=`bold ${this.sz}px Arial`; ctx.textAlign='center';
+    ctx.strokeStyle='#000'; ctx.lineWidth=3;
+    ctx.strokeText(this.txt,this.x,this.y);
+    ctx.fillStyle=this.col;
+    ctx.fillText(this.txt,this.x,this.y);
     ctx.restore();
   }
 }
+function addP(x,y,t,c,s) { particles.push(new Part(x,y,t,c,s)); }
 
-function addParticle(x, y, text, color, size) {
-  particles.push(new Particle(x, y, text, color, size));
-}
+// ====== 工具 ======
+function shade(c,p) { const n=parseInt(c.slice(1),16); const a=Math.round(2.55*p); return '#'+(0x1000000+Math.max(0,Math.min(255,(n>>16)+a))*0x10000+Math.max(0,Math.min(255,((n>>8)&0xff)+a))*0x100+Math.max(0,Math.min(255,(n&0xff)+a))).toString(16).slice(1); }
+function lighten(c,p) { return shade(c, p); }
 
-// ====== 工具函数 ======
-function shadeColor(color, percent) {
-  const num = parseInt(color.replace('#', ''), 16);
-  const amt = Math.round(2.55 * percent);
-  const R = Math.max(0, Math.min(255, (num >> 16) + amt));
-  const G = Math.max(0, Math.min(255, ((num >> 8) & 0xFF) + amt));
-  const B = Math.max(0, Math.min(255, (num & 0xFF) + amt));
-  return '#' + ((1 << 24) + (R << 16) + (G << 8) + B).toString(16).slice(1);
-}
-
-function lightenColor(color, percent) {
-  return shadeColor(color, percent);
-}
-
-function findNearest(pos, range) {
-  let nearest = null, minDist = Infinity;
+// ====== 自动攻击 ======
+function autoAtk() {
+  hero.atkTimer += .016;
+  if (hero.atkTimer < hero.atkSpd) return;
+  hero.atkTimer = 0;
+  
+  const p = heroPos();
+  const range = CLS[hero.cls].range + (hero.towerIdx === 4 ? 20 : 0); // 中心加范围
+  let target = null, md = Infinity;
+  
   for (const e of enemies) {
-    const dist = Math.hypot(e.x - pos.x, e.y - pos.y);
-    if (dist < range && dist < minDist) {
-      minDist = dist;
-      nearest = e;
-    }
+    const d = Math.hypot(e.x-p.x, e.y-p.y);
+    if (d < range && d < md) { md = d; target = e; }
   }
-  return nearest;
+  
+  if (target) {
+    let dmg = Math.max(1, Math.floor(hero.atk * hero.buff - target.def));
+    // 暴击
+    if (Math.random() < hero.crit) {
+      dmg = Math.floor(dmg * hero.critDmg);
+      addP(target.x, target.y-15, dmg+'!', '#ffd700', 16);
+    } else {
+      addP(target.x, target.y-15, '-'+dmg, CLS[hero.cls].color, 12);
+    }
+    target.hp -= dmg;
+  }
+}
+
+// ====== 技能释放 ======
+function useSkill(idx) {
+  const sk = hero.skills[idx];
+  const costs = [5, 12, 8, 25];
+  if (sk.cd > 0 || hero.mp < costs[idx]) return;
+  
+  sk.cd = sk.maxCd;
+  hero.mp -= costs[idx];
+  const p = heroPos();
+  
+  if (idx === 0) {
+    // Q: 单体
+    let t = null, md = Infinity;
+    for (const e of enemies) { const d = Math.hypot(e.x-p.x, e.y-p.y); if (d < CLS[hero.cls].range*1.5 && d < md) { md = d; t = e; } }
+    if (t) { const dmg = Math.max(1, Math.floor(hero.atk*1.5*hero.buff - t.def)); t.hp -= dmg; addP(t.x, t.y-15, '-'+dmg, '#ff6f00', 14); }
+  } else if (idx === 1) {
+    // W: AOE
+    for (const e of enemies) {
+      if (Math.hypot(e.x-p.x, e.y-p.y) < sk.aoe) {
+        const dmg = Math.max(1, Math.floor(hero.atk*sk.dmg*hero.buff - e.def));
+        e.hp -= dmg; addP(e.x, e.y-15, '-'+dmg, '#4fc3f7', 13);
+      }
+    }
+    shake = 5;
+  } else if (idx === 2) {
+    // E: 治疗
+    hero.hp = Math.min(hero.maxHp, hero.hp + sk.heal);
+    addP(p.x, p.y-25, '+'+sk.heal, '#4caf50', 14);
+  } else if (idx === 3) {
+    // R: 大招
+    for (const e of enemies) {
+      const dmg = Math.max(1, Math.floor(hero.atk*sk.dmg*hero.buff - e.def));
+      e.hp -= dmg; addP(e.x, e.y-15, '-'+dmg, '#ffd700', 15);
+    }
+    shake = 10;
+    addP(p.x, p.y-40, '大招!', '#ffd700', 22);
+  }
+  updateSkUI();
+}
+
+// ====== 经验升级 ======
+function gainExp(amt) {
+  hero.exp += amt;
+  while (hero.exp >= hero.expNeed) {
+    hero.exp -= hero.expNeed;
+    levelUp();
+  }
+}
+
+function levelUp() {
+  hero.lv++;
+  hero.expNeed = Math.floor(100 * Math.pow(hero.lv, 1.2));
+  hero.maxHp += 22; hero.hp = hero.maxHp;
+  hero.maxMp += 10; hero.mp = hero.maxMp;
+  hero.atk += 3; hero.def += 1;
+  const p = heroPos();
+  addP(p.x, p.y-35, 'LEVEL UP!', '#ffd700', 18);
+  showToast('Level ' + hero.lv);
+  
+  // 转职检查
+  if (hero.lv === 10 && hero.promo === 0) showPromo();
+  if (hero.lv === 25 && hero.promo === 1) showPromo();
 }
 
 // ====== 转职系统 ======
-function showPromotionOptions(hero) {
-  const modal = document.getElementById('class-modal');
-  const options = document.getElementById('class-options');
-  options.innerHTML = '';
+function showPromo() {
+  state = 'paused';
+  const modal = document.getElementById('promo-modal');
+  const cards = document.getElementById('promo-cards');
+  cards.innerHTML = '';
   
   // 自动转职
-  const autoCard = document.createElement('div');
-  autoCard.className = 'class-card auto';
-  autoCard.innerHTML = `<div class="icon">🎲</div><div class="name">自动转职</div><div class="bonus">+20% 属性</div><div class="desc">随机职业<br>惊喜或惊吓!</div>`;
-  autoCard.onclick = () => {
-    const classes = ['blademaster', 'mountainking', 'bloodmage', 'windrunner'];
-    const random = classes[Math.floor(Math.random() * classes.length)];
-    hero.classType = random;
-    hero.buff *= 1.2;
-    hero.atk = Math.floor(hero.atk * 1.2);
-    hero.def = Math.floor(hero.def * 1.2);
-    hero.maxHp = Math.floor(hero.maxHp * 1.2);
-    hero.promotionLevel++;
-    modal.classList.remove('show');
-    gameState = 'playing';
-    addParticle(hero.getPos().x, hero.getPos().y - 40, '转职:' + CLASSES[random].name, '#ffd700', 20);
-  };
-  options.appendChild(autoCard);
+  const auto = document.createElement('div');
+  auto.className = 'promo-card auto';
+  auto.innerHTML = '<div class="icon">🎲</div><div class="name">自动转职</div><div class="bonus">+20% 全属性</div><div class="desc">随机职业<br>可能有惊喜!</div>';
+  auto.onclick = () => doPromo(true);
+  cards.appendChild(auto);
   
-  // 手动选择
-  const classes = [
-    { key: 'blademaster', desc: '高攻速近战' },
-    { key: 'mountainking', desc: '高防御坦克' },
-    { key: 'bloodmage', desc: '法术伤害' },
-    { key: 'windrunner', desc: '远程输出' }
-  ];
-  
-  for (const c of classes) {
-    const cls = CLASSES[c.key];
+  // 手动选项
+  const options = getOptions();
+  for (const o of options) {
     const card = document.createElement('div');
-    card.className = 'class-card';
-    card.style.borderColor = cls.color;
-    card.innerHTML = `<div class="icon">${cls.icon}</div><div class="name">${cls.name}</div><div class="bonus">+10% 属性</div><div class="desc">${c.desc}</div>`;
-    card.onclick = () => {
-      hero.classType = c.key;
-      hero.buff *= 1.1;
-      hero.atk = Math.floor(hero.atk * 1.1);
-      hero.def = Math.floor(hero.def * 1.1);
-      hero.maxHp = Math.floor(hero.maxHp * 1.1);
-      hero.promotionLevel++;
-      modal.classList.remove('show');
-      gameState = 'playing';
-      addParticle(hero.getPos().x, hero.getPos().y - 40, '转职:' + cls.name, '#ffd700', 20);
-    };
-    options.appendChild(card);
+    card.className = 'promo-card';
+    card.style.borderColor = o.color;
+    card.innerHTML = `<div class="icon">${o.icon}</div><div class="name">${o.name}</div><div class="bonus">+10% 全属性</div><div class="desc">${o.desc}</div>`;
+    card.onclick = () => doPromo(false, o.key);
+    cards.appendChild(card);
   }
   
   modal.classList.add('show');
-  gameState = 'paused';
 }
 
-// ====== 英雄槽位 ======
-function checkHeroSlots() {
-  const slots = document.querySelectorAll('.hero-slot');
-  const lvl = heroes.length > 0 ? Math.max(...heroes.map(h => h.level)) : 1;
-  const unlockLevels = [1, 5, 10, 20, 30];
-  
-  for (let i = 0; i < slots.length; i++) {
-    if (i < heroes.length) {
-      slots[i].classList.remove('locked');
-      slots[i].classList.add('occupied');
-      slots[i].innerHTML = CLASSES[heroes[i].classType].icon;
-    } else if (lvl >= unlockLevels[i]) {
-      slots[i].classList.remove('locked');
-      slots[i].innerHTML = '➕';
-    }
-  }
-}
-
-function addHero(classType) {
-  if (heroes.length >= 5) return;
-  let towerIdx = -1;
-  const occupied = heroes.map(h => h.towerIdx);
-  for (let i = 0; i < 5; i++) {
-    if (!occupied.includes(i)) { towerIdx = i; break; }
-  }
-  if (towerIdx === -1) return;
-  heroes.push(new Hero(classType, towerIdx));
-  checkHeroSlots();
-}
-
-// ====== 波次系统 ======
-function spawnWave() {
-  const count = 5 + Math.floor(wave * 1.5);
-  const hasBoss = wave % 5 === 0;
-  
-  const alert = document.getElementById('wave-alert');
-  const text = document.getElementById('wave-text');
-  const sub = document.getElementById('wave-sub');
-  
-  if (hasBoss) {
-    alert.classList.add('boss');
-    text.textContent = '⚠️ BOSS WAVE ⚠️';
-    sub.textContent = '强大的敌人来袭!';
-  } else {
-    alert.classList.remove('boss');
-    text.textContent = `WAVE ${wave}`;
-    sub.textContent = `${count} 敌人来袭!`;
-  }
-  alert.style.display = 'block';
-  setTimeout(() => alert.style.display = 'none', 2000);
-  
-  let spawned = 0;
-  const interval = setInterval(() => {
-    if (spawned >= count || gameState === 'gameover') {
-      clearInterval(interval);
-      return;
-    }
-    
-    if (hasBoss && spawned === 0) {
-      enemies.push(new Enemy('normal', 2, true));
+function getOptions() {
+  const base = hero.cls;
+  const opts = [];
+  if (hero.promo === 0) {
+    if (base === 'warrior' || base === 'blademaster' || base === 'mountainking' || base === 'bloodmage') {
+      opts.push({ key:'blademaster', ...CLS.blademaster, desc:'高攻速近战' });
+      opts.push({ key:'mountainking', ...CLS.mountainking, desc:'高防坦克' });
+      opts.push({ key:'bloodmage', ...CLS.bloodmage, desc:'法术伤害' });
     } else {
-      const pathIdx = Math.random() < 0.5 ? 0 : 1;
-      const type = wave > 3 && Math.random() < 0.25 ? 'fast' : 'normal';
-      enemies.push(new Enemy(type, pathIdx, false));
+      opts.push({ key:'windrunner', ...CLS.windrunner, desc:'远程输出' });
+      opts.push({ key:'shadowhunter', ...CLS.shadowhunter, desc:'高暴击' });
+      opts.push({ key:'keeper', ...CLS.keeper, desc:'召唤辅助' });
     }
-    spawned++;
-  }, 600);
+  } else {
+    opts.push({ key:'swordgod', ...CLS.swordgod, desc:'终极剑士' });
+    opts.push({ key:'titan', ...CLS.titan, desc:'终极坦克' });
+    opts.push({ key:'inferno', ...CLS.inferno, desc:'终极法师' });
+  }
+  return opts;
+}
+
+function doPromo(auto, clsKey) {
+  const bonus = auto ? 1.2 : 1.1;
+  if (auto) {
+    const options = getOptions();
+    const r = options[Math.floor(Math.random()*options.length)];
+    clsKey = r.key;
+  }
+  
+  hero.cls = clsKey;
+  hero.buff *= bonus;
+  hero.atk = Math.floor(hero.atk * bonus);
+  hero.def = Math.floor(hero.def * bonus);
+  hero.maxHp = Math.floor(hero.maxHp * bonus);
+  hero.hp = hero.maxHp;
+  hero.maxMp = Math.floor(hero.maxMp * bonus);
+  hero.mp = hero.maxMp;
+  hero.promo++;
+  
+  // 更新技能
+  updateSkills();
+  
+  document.getElementById('promo-modal').classList.remove('show');
+  state = 'playing';
+  
+  const p = heroPos();
+  addP(p.x, p.y-40, '转职:' + CLS[clsKey].name, '#ffd700', 22);
+  showToast('转职成功!');
+}
+
+function updateSkills() {
+  const cls = hero.cls;
+  if (cls.includes('blade') || cls === 'swordgod') {
+    hero.skills[1] = { name:'剑气', cd:0, maxCd:3, dmg:2.8, ic:'💫', aoe:90 };
+    hero.skills[3] = { name:'剑刃风暴', cd:0, maxCd:15, dmg:6.0, ic:'🌪️', aoe:200 };
+  } else if (cls.includes('mountain') || cls === 'titan') {
+    hero.skills[1] = { name:'雷霆', cd:0, maxCd:4, dmg:2.0, ic:'⚡', aoe:110 };
+    hero.skills[3] = { name:'天神下凡', cd:0, maxCd:20, dmg:4.0, ic:'🏔️', aoe:180 };
+  } else if (cls.includes('blood') || cls === 'inferno') {
+    hero.skills[0] = { name:'火球', cd:0, maxCd:0.5, dmg:1.3, ic:'🔥' };
+    hero.skills[1] = { name:'烈焰', cd:0, maxCd:4, dmg:2.5, ic:'🔥', aoe:100 };
+    hero.skills[3] = { name:'烈焰风暴', cd:0, maxCd:16, dmg:5.5, ic:'🌋', aoe:220 };
+  } else if (cls.includes('wind')) {
+    hero.skills[1] = { name:'穿透箭', cd:0, maxCd:3, dmg:2.5, ic:'🎯', aoe:120 };
+    hero.skills[3] = { name:'箭雨', cd:0, maxCd:16, dmg:5.5, ic:'🌧️', aoe:250 };
+  } else if (cls.includes('shadow')) {
+    hero.crit = 0.25;
+    hero.skills[1] = { name:'毒刃', cd:0, maxCd:3, dmg:3.0, ic:'🗡️', aoe:80 };
+    hero.skills[3] = { name:'暗影突袭', cd:0, maxCd:14, dmg:7.0, ic:'🌑', aoe:180 };
+  }
+}
+
+// ====== 波次生成 ======
+function spawnWave() {
+  const count = 6 + Math.floor(wave * 1.5);
+  const boss = wave % 5 === 0;
+  
+  const ann = document.getElementById('wave-ann');
+  if (boss) {
+    ann.className = 'wave-announce boss';
+    ann.innerHTML = '⚠️ BOSS WAVE ⚠️<br><span style="font-size:16px">强大的敌人!</span>';
+  } else {
+    ann.className = 'wave-announce';
+    ann.innerHTML = `WAVE ${wave}<br><span style="font-size:16px">${count} 敌人来袭</span>`;
+  }
+  ann.style.display = 'block';
+  setTimeout(() => ann.style.display = 'none', 2000);
+  
+  let n = 0;
+  const iv = setInterval(() => {
+    if (n >= count || state === 'gameover') { clearInterval(iv); return; }
+    
+    const path = Math.random() < 0.5 ? 'inner' : 'outer';
+    const type = wave > 3 && Math.random() < 0.3 ? 'fast' : 'normal';
+    
+    if (boss && n === 0) {
+      enemies.push(new Enemy('outer', 'normal', true));
+    } else {
+      enemies.push(new Enemy(path, type, false));
+    }
+    n++;
+  }, 500);
 }
 
 // ====== 失败检查 ======
-function checkGameOver() {
-  // 条件1: 敌人超过200
-  if (enemies.length >= CONFIG.MAX_ENEMIES) {
-    gameOver('敌人太多了! (超过200)');
-    return;
-  }
-  // 条件2: 所有英雄死亡
-  if (heroes.length > 0 && heroes.every(h => h.hp <= 0)) {
-    gameOver('所有英雄阵亡!');
-    return;
-  }
+function checkEnd() {
+  if (enemies.length >= C.MAX_ENEMIES) { gameOver('敌人超过' + C.MAX_ENEMIES + '个!'); return; }
+  if (hero.hp <= 0) gameOver('英雄阵亡!');
 }
 
 function gameOver(reason) {
-  gameState = 'gameover';
-  document.getElementById('final-wave').textContent = wave;
-  document.getElementById('final-kills').textContent = kills;
-  document.getElementById('final-reason').textContent = reason;
-  document.getElementById('game-over').style.display = 'block';
+  state = 'gameover';
+  document.getElementById('go-wave').textContent = wave;
+  document.getElementById('go-kills').textContent = kills;
+  document.getElementById('go-reason').textContent = reason;
+  document.getElementById('gameover').classList.add('show');
+}
+
+// ====== Toast ======
+function showToast(txt) {
+  const t = document.getElementById('toast');
+  t.textContent = txt;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 1500);
 }
 
 // ====== UI更新 ======
 function updateUI() {
-  document.getElementById('hero-level').textContent = heroes.length > 0 ? Math.max(...heroes.map(h => h.level)) : 1;
+  document.getElementById('lv').textContent = hero.lv;
+  document.getElementById('side-lv').textContent = hero.lv;
   document.getElementById('gold').textContent = gold;
   document.getElementById('wave').textContent = wave;
   document.getElementById('kills').textContent = kills;
-  document.getElementById('enemy-count').textContent = enemies.length;
+  document.getElementById('enemies').textContent = enemies.length;
   
-  // 敌人数量警告
-  const ec = document.getElementById('enemy-count');
-  if (enemies.length > 150) ec.style.color = '#ff4444';
-  else if (enemies.length > 100) ec.style.color = '#ff9800';
-  else ec.style.color = '#ffd700';
+  const ec = document.getElementById('enemies');
+  ec.style.color = enemies.length > 120 ? '#f44336' : enemies.length > 80 ? '#ff9800' : '#ffd700';
   
-  updateSkillUI();
+  document.getElementById('class-icon').textContent = CLS[hero.cls].icon;
+  document.getElementById('class-name').textContent = CLS[hero.cls].name;
+  document.getElementById('hp-bar').style.width = (hero.hp/hero.maxHp*100)+'%';
+  document.getElementById('mp-bar').style.width = (hero.mp/hero.maxMp*100)+'%';
+  document.getElementById('exp-bar').style.width = (hero.exp/hero.expNeed*100)+'%';
+  
+  updateSkUI();
 }
 
-function updateSkillUI() {
-  if (heroes.length === 0) return;
-  const hero = heroes[selectedHero];
-  
+function updateSkUI() {
+  const costs = [5, 12, 8, 25];
   for (let i = 0; i < 4; i++) {
     const btn = document.querySelector(`[data-skill="${i}"]`);
-    const skill = hero.skills[i];
-    const costs = [5, 15, 10, 30];
+    const sk = hero.skills[i];
+    btn.querySelector('.ic').textContent = sk.ic;
+    btn.querySelector('.nm').textContent = sk.name;
     
-    btn.querySelector('.icon').textContent = skill.icon;
-    btn.querySelector('.name').textContent = skill.name;
-    
-    // 移除旧的CD覆盖
-    const old = btn.querySelector('.cd-overlay');
+    const old = btn.querySelector('.cd');
     if (old) old.remove();
     
-    if (skill.cd > 0) {
-      btn.classList.add('cooldown');
-      btn.classList.remove('ready');
-      const div = document.createElement('div');
-      div.className = 'cd-overlay';
-      div.textContent = Math.ceil(skill.cd);
-      btn.appendChild(div);
+    if (sk.cd > 0) {
+      btn.classList.add('off'); btn.classList.remove('on');
+      const d = document.createElement('div'); d.className = 'cd'; d.textContent = Math.ceil(sk.cd); btn.appendChild(d);
     } else if (hero.mp < costs[i]) {
-      btn.classList.add('cooldown');
-      btn.classList.remove('ready');
+      btn.classList.add('off'); btn.classList.remove('on');
     } else {
-      btn.classList.remove('cooldown');
-      btn.classList.add('ready');
+      btn.classList.remove('off'); btn.classList.add('on');
     }
-  }
-  
-  // 升级按钮
-  if (selectedTower !== null) {
-    const costs = [100, 300, 800];
-    const cost = costs[TOWER_POSITIONS[selectedTower].level - 1];
-    const btn = document.getElementById('upgrade-tower');
-    if (cost && TOWER_POSITIONS[selectedTower].level < 4) {
-      btn.textContent = `升级塔位 💰${cost}`;
-      btn.style.display = gold >= cost ? 'block' : 'none';
-    } else {
-      btn.style.display = 'none';
-    }
-  } else {
-    document.getElementById('upgrade-tower').style.display = 'none';
   }
 }
 
-// ====== 渲染 ======
+// ====== 绘制 ======
 function drawMap() {
   // 背景
-  const bg = ctx.createLinearGradient(0, 0, 0, CONFIG.CANVAS_H);
-  bg.addColorStop(0, '#1a2a1a');
-  bg.addColorStop(1, '#0d1b0d');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+  const bg = ctx.createLinearGradient(0, 0, 0, C.H);
+  bg.addColorStop(0, '#1a2a1a'); bg.addColorStop(1, '#0d1b0d');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, C.W, C.H);
   
-  // 草地纹理
-  ctx.fillStyle = 'rgba(34,139,34,0.08)';
-  for (let i = 0; i < 60; i++) {
-    ctx.beginPath();
-    ctx.arc((i * 73) % CONFIG.CANVAS_W, (i * 97) % CONFIG.CANVAS_H, 8 + (i % 15), 0, Math.PI * 2);
-    ctx.fill();
-  }
+  // 草地
+  ctx.fillStyle = 'rgba(34,139,34,.06)';
+  for (let i = 0; i < 40; i++) { ctx.beginPath(); ctx.arc((i*67)%C.W, (i*89)%C.H, 10+i%12, 0, Math.PI*2); ctx.fill(); }
   
-  // 绘制路线
-  const pathColors = ['rgba(139,90,43,0.5)', 'rgba(139,90,43,0.5)', 'rgba(178,34,34,0.5)'];
-  for (let p = 0; p < PATHS.length; p++) {
-    const path = PATHS[p];
-    
-    // 路面
-    ctx.strokeStyle = pathColors[p];
-    ctx.lineWidth = 36;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(path[0].x, path[0].y);
-    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-    ctx.stroke();
-    
-    // 路线边框
-    ctx.strokeStyle = 'rgba(80,60,40,0.6)';
-    ctx.lineWidth = 40;
-    ctx.beginPath();
-    ctx.moveTo(path[0].x, path[0].y);
-    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-    ctx.stroke();
-    
-    // 路面内部
-    ctx.strokeStyle = pathColors[p];
-    ctx.lineWidth = 32;
-    ctx.beginPath();
-    ctx.moveTo(path[0].x, path[0].y);
-    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-    ctx.stroke();
-    
-    // 虚线
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([8, 8]);
-    ctx.beginPath();
-    ctx.moveTo(path[0].x, path[0].y);
-    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
+  // 外环路线
+  drawPath(PATHS.outer, 'rgba(100,70,40,.4)', 36);
+  drawPath(PATHS.outer, 'rgba(139,90,43,.5)', 30);
   
-  // 绘制塔位
-  for (let i = 0; i < TOWER_POSITIONS.length; i++) {
-    const t = TOWER_POSITIONS[i];
-    const hasHero = heroes.some(h => h.towerIdx === i);
-    const selected = selectedTower === i;
+  // 内环路线
+  drawPath(PATHS.inner, 'rgba(80,80,120,.3)', 30);
+  drawPath(PATHS.inner, 'rgba(100,100,150,.4)', 24);
+  
+  // 路线标签
+  ctx.fillStyle = 'rgba(255,255,255,.3)';
+  ctx.font = '10px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('外环', 30, 50);
+  ctx.fillText('内环', 100, 165);
+  
+  // 塔位
+  for (let i = 0; i < 5; i++) {
+    const t = TOWERS[i];
+    const active = hero.towerIdx === i;
     
-    // 底座光晕
-    if (hasHero) {
-      ctx.fillStyle = 'rgba(74,144,217,0.15)';
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, 35, 0, Math.PI * 2);
-      ctx.fill();
+    // 光晕
+    if (active) {
+      ctx.fillStyle = 'rgba(74,144,217,.15)';
+      ctx.beginPath(); ctx.arc(t.x, t.y, 35, 0, Math.PI*2); ctx.fill();
     }
     
-    // 塔位圆环
-    ctx.strokeStyle = selected ? '#ffd700' : (hasHero ? '#4a90d9' : 'rgba(100,100,100,0.5)');
-    ctx.lineWidth = selected ? 3 : 2;
-    ctx.beginPath();
-    ctx.arc(t.x, t.y, 28, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // 填充
-    ctx.fillStyle = hasHero ? 'rgba(74,144,217,0.2)' : 'rgba(50,50,50,0.3)';
+    // 圆环
+    ctx.strokeStyle = active ? '#ffd700' : 'rgba(100,100,100,.5)';
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.beginPath(); ctx.arc(t.x, t.y, 26, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = active ? 'rgba(74,144,217,.2)' : 'rgba(50,50,50,.3)';
     ctx.fill();
     
-    // 塔位等级
-    if (t.level > 1) {
+    // 塔位名
+    if (!active) {
+      ctx.fillStyle = 'rgba(255,255,255,.3)';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(t.name, t.x, t.y + 38);
+    }
+    
+    // 等级
+    if (t.lv > 1) {
       ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 10px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('★'.repeat(t.level - 1), t.x, t.y + 40);
-    }
-    
-    // 空塔位加号
-    if (!hasHero) {
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.font = '22px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('+', t.x, t.y);
+      ctx.font = '9px Arial';
+      ctx.fillText('★'.repeat(t.lv-1), t.x, t.y + 48);
     }
   }
+}
+
+function drawPath(path, col, w) {
+  ctx.strokeStyle = col;
+  ctx.lineWidth = w;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(path[0].x, path[0].y);
+  for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawHero() {
+  const p = heroPos();
+  const cls = CLS[hero.cls];
+  
+  // 攻击范围
+  ctx.strokeStyle = 'rgba(255,255,255,.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(p.x, p.y, cls.range, 0, Math.PI*2); ctx.stroke();
+  
+  // 身体
+  const g = ctx.createRadialGradient(p.x-5, p.y-5, 2, p.x, p.y, 24);
+  g.addColorStop(0, '#fff'); g.addColorStop(.3, cls.color); g.addColorStop(1, shade(cls.color, -40));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, Math.PI*2); ctx.fill();
+  
+  // 发光边框
+  ctx.shadowColor = cls.color; ctx.shadowBlur = 12;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+  ctx.stroke(); ctx.shadowBlur = 0;
+  
+  // 图标
+  ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff'; ctx.fillText(cls.icon, p.x, p.y);
+  
+  // 名字
+  ctx.font = 'bold 10px Arial'; ctx.fillStyle = cls.color;
+  ctx.fillText(cls.name, p.x, p.y + 34);
+  
+  // 血蓝条
+  const bw = 44;
+  ctx.fillStyle = '#333'; ctx.fillRect(p.x-bw/2, p.y-32, bw, 5);
+  ctx.fillStyle = hero.hp > hero.maxHp*.5 ? '#4caf50' : '#f44336';
+  ctx.fillRect(p.x-bw/2, p.y-32, bw*(hero.hp/hero.maxHp), 5);
+  
+  ctx.fillStyle = '#222'; ctx.fillRect(p.x-bw/2, p.y-26, bw, 3);
+  ctx.fillStyle = '#2196f3'; ctx.fillRect(p.x-bw/2, p.y-26, bw*(hero.mp/hero.maxMp), 3);
 }
 
 // ====== 主循环 ======
 function update() {
-  if (gameState !== 'playing') return;
+  if (state !== 'playing') return;
   
-  // 更新英雄
-  for (const hero of heroes) {
-    hero.update();
-    if (hero.hp > 0) hero.autoAttack();
-  }
+  // 英雄
+  if (hero.hp > 0) autoAtk();
+  if (hero.mp < hero.maxMp) hero.mp += .05;
+  for (const s of hero.skills) if (s.cd > 0) s.cd -= .016;
   
-  // 更新敌人
-  for (let i = enemies.length - 1; i >= 0; i--) {
+  // 敌人
+  for (let i = enemies.length-1; i >= 0; i--) {
     if (!enemies[i].update()) {
-      if (enemies[i].waypoint >= PATHS[enemies[i].pathIdx].length) {
-        // 敌人到达终点
-        enemies.splice(i, 1);
-      }
+      // 到达终点
+      enemies.splice(i, 1);
     } else if (enemies[i].hp <= 0) {
-      // 敌人死亡
       kills++;
-      gold += enemies[i].isBoss ? 50 : 10;
-      for (const h of heroes) h.gainExp(enemies[i].exp);
-      addParticle(enemies[i].x, enemies[i].y, '+' + enemies[i].exp + 'EXP', '#4fc3f7', 12);
+      gold += enemies[i].boss ? 50 : (8 + Math.floor(wave/3));
+      gainExp(enemies[i].exp);
+      addP(enemies[i].x, enemies[i].y, '+' + enemies[i].exp + 'EXP', '#4fc3f7', 11);
       enemies.splice(i, 1);
     }
   }
   
-  // 更新粒子
-  for (let i = particles.length - 1; i >= 0; i--) {
-    if (!particles[i].update()) particles.splice(i, 1);
-  }
+  // 粒子
+  for (let i = particles.length-1; i >= 0; i--) if (!particles[i].update()) particles.splice(i, 1);
   
-  // 波次计时
-  waveTimer -= 0.016;
-  if (waveTimer <= 0) {
-    wave++;
-    waveTimer = CONFIG.WAVE_INTERVAL + wave * 1.5;
-    spawnWave();
-  }
+  // 波次
+  waveT -= .016;
+  if (waveT <= 0) { wave++; waveT = C.WAVE_CD + wave*1.2; spawnWave(); }
   
-  // 屏幕震动衰减
-  if (screenShake > 0) screenShake *= 0.85;
-  if (screenShake < 0.5) screenShake = 0;
+  if (shake > 0) shake *= .85;
+  if (shake < .5) shake = 0;
   
-  // 失败检查
-  checkGameOver();
-  
+  checkEnd();
   updateUI();
 }
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
   ctx.save();
-  if (screenShake > 0) {
-    ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
-  }
+  if (shake > 0) ctx.translate((Math.random()-.5)*shake, (Math.random()-.5)*shake);
   
   drawMap();
-  
-  // 绘制敌人
   for (const e of enemies) e.draw();
-  
-  // 绘制英雄
-  for (const h of heroes) h.draw();
-  
-  // 绘制粒子
+  drawHero();
   for (const p of particles) p.draw();
   
   ctx.restore();
 }
 
-function gameLoop(timestamp) {
-  update();
-  draw();
-  requestAnimationFrame(gameLoop);
+function loop(t) {
+  update(); draw();
+  requestAnimationFrame(loop);
 }
 
 // ====== 初始化 ======
 function init() {
   canvas = document.getElementById('game');
   ctx = canvas.getContext('2d');
+  canvas.width = C.W; canvas.height = C.H;
   
-  // 正确设置画布尺寸
-  canvas.width = CONFIG.CANVAS_W;
-  canvas.height = CONFIG.CANVAS_H;
-  
-  // 添加初始英雄
-  addHero('warrior');
-  
-  // 启动游戏循环
-  requestAnimationFrame(gameLoop);
-  
-  // 事件监听
+  requestAnimationFrame(loop);
   setupEvents();
 }
 
 function setupEvents() {
-  // 技能按钮
-  document.querySelectorAll('.skill-btn').forEach(btn => {
-    const handler = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (heroes.length > 0 && gameState === 'playing') {
-        heroes[selectedHero].useSkill(parseInt(btn.dataset.skill));
-      }
-    };
-    btn.addEventListener('touchstart', handler);
-    btn.addEventListener('click', handler);
+  // 技能
+  document.querySelectorAll('.sk').forEach(b => {
+    const fn = e => { e.preventDefault(); if (state==='playing') useSkill(+b.dataset.skill); };
+    b.addEventListener('touchstart', fn);
+    b.addEventListener('click', fn);
   });
   
-  // 画布点击
-  canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-    
-    for (let i = 0; i < TOWER_POSITIONS.length; i++) {
-      const t = TOWER_POSITIONS[i];
-      if (Math.hypot(x - t.x, y - t.y) < 30) {
-        selectedTower = i;
-        if (!heroes.some(h => h.towerIdx === i) && heroes.length < 5) {
-          addHero(heroes.length === 0 ? 'warrior' : 'archer');
-        }
-        updateUI();
-        return;
-      }
-    }
-    selectedTower = null;
-    updateUI();
+  // 移动按钮
+  document.getElementById('btn-tower').addEventListener('click', () => {
+    document.getElementById('tower-modal').classList.add('show');
+    state = 'paused';
   });
   
-  // 英雄槽点击
-  document.querySelectorAll('.hero-slot').forEach(slot => {
-    slot.addEventListener('click', () => {
-      const idx = parseInt(slot.dataset.slot);
-      if (!slot.classList.contains('locked') && idx < heroes.length) {
-        selectedHero = idx;
-        document.querySelectorAll('.hero-slot').forEach(s => s.classList.remove('active'));
-        slot.classList.add('active');
-      } else if (!slot.classList.contains('locked') && idx === heroes.length && heroes.length < 5) {
-        addHero('archer');
-      }
+  // 塔位选择
+  document.querySelectorAll('.tower-btn[data-tower]').forEach(b => {
+    b.addEventListener('click', () => {
+      hero.towerIdx = +b.dataset.tower;
+      document.querySelectorAll('.tower-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      document.getElementById('tower-modal').classList.remove('show');
+      state = 'playing';
+      addP(heroPos().x, heroPos().y-30, '移动!', '#fff', 14);
     });
   });
   
   // 升级按钮
-  document.getElementById('upgrade-tower').addEventListener('click', () => {
-    if (selectedTower !== null) {
-      const costs = [100, 300, 800];
-      const cost = costs[TOWER_POSITIONS[selectedTower].level - 1];
-      if (gold >= cost && TOWER_POSITIONS[selectedTower].level < 4) {
-        gold -= cost;
-        TOWER_POSITIONS[selectedTower].level++;
-        const hero = heroes.find(h => h.towerIdx === selectedTower);
-        if (hero) {
-          hero.atk = Math.floor(hero.atk * 1.2);
-          if (TOWER_POSITIONS[selectedTower].level >= 3) hero.atkRange *= 1.15;
-        }
-        updateUI();
-        addParticle(TOWER_POSITIONS[selectedTower].x, TOWER_POSITIONS[selectedTower].y - 40, '塔位升级!', '#ffd700', 18);
-      }
+  document.getElementById('btn-upgrade').addEventListener('click', () => {
+    const t = TOWERS[hero.towerIdx];
+    const costs = [80, 200, 500, 1000];
+    const cost = costs[t.lv-1];
+    if (cost && gold >= cost && t.lv < 5) {
+      gold -= cost; t.lv++;
+      hero.atk = Math.floor(hero.atk * 1.15);
+      addP(t.x, t.y-40, '塔位升级!', '#ffd700', 16);
+      showToast('塔位Lv.' + t.lv);
     }
   });
 }

@@ -3,132 +3,158 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>魔兽RPG塔防 - 英雄之路</title>
+<title>魔兽RPG - 无尽塔防</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none}
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:'Microsoft YaHei',Arial,sans-serif}
-#game-container{position:relative;width:100%;height:100%;max-width:500px;margin:0 auto}
-canvas#game{width:100%;height:100%;display:block}
-
-/* UI层 */
-#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100}
+#app{position:relative;width:100%;height:100%;max-width:500px;margin:0 auto}
+canvas{width:100%;height:100%;display:block}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
 #ui>*{pointer-events:auto}
 
-/* 顶部信息栏 */
-.top-bar{position:absolute;top:0;left:0;width:100%;padding:8px 12px;background:linear-gradient(180deg,rgba(0,0,0,0.9),rgba(0,0,0,0.7));display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #4a90d9}
-.stat{color:#fff;font-size:12px;display:flex;align-items:center;gap:4px}
-.stat-icon{font-size:16px}
-.stat-value{font-weight:bold;color:#ffd700}
+/* 顶栏 */
+.top{position:absolute;top:0;left:0;width:100%;padding:6px 10px;background:linear-gradient(180deg,rgba(0,0,0,.9),rgba(0,0,0,.5));display:flex;justify-content:space-between;border-bottom:2px solid #4a90d9;z-index:20}
+.top .item{color:#fff;font-size:11px;display:flex;align-items:center;gap:3px}
+.top .val{color:#ffd700;font-weight:bold}
 
-/* 底部技能栏 */
-.bottom-bar{position:absolute;bottom:0;left:0;width:100%;padding:10px;background:linear-gradient(0deg,rgba(0,0,0,0.95),rgba(0,0,0,0.7));display:flex;justify-content:center;gap:8px;border-top:2px solid #4a90d9}
-.skill-btn{width:60px;height:60px;border-radius:12px;border:3px solid #666;background:linear-gradient(180deg,#333,#1a1a1a);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;position:relative}
-.skill-btn.ready{border-color:#4a90d9;background:linear-gradient(180deg,#2a4a7a,#1a2a4a);box-shadow:0 0 10px rgba(74,144,217,0.5)}
-.skill-btn.cooldown{opacity:0.5}
-.skill-btn .icon{font-size:24px}
-.skill-btn .name{font-size:8px;margin-top:2px}
-.skill-btn .cd-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold}
+/* 底栏 */
+.bot{position:absolute;bottom:0;left:0;width:100%;padding:8px;background:linear-gradient(0deg,rgba(0,0,0,.95),rgba(0,0,0,.6));display:flex;justify-content:center;gap:6px;border-top:2px solid #4a90d9;z-index:20}
+.sk{width:56px;height:56px;border-radius:10px;border:2px solid #555;background:#222;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.sk.on{border-color:#4a90d9;background:#1a3a5a;box-shadow:0 0 8px rgba(74,144,217,.4)}
+.sk.off{opacity:.5}
+.sk .ic{font-size:20px}
+.sk .nm{font-size:7px;margin-top:1px}
+.sk .cd{position:absolute;inset:0;background:rgba(0,0,0,.7);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold}
 
-/* 英雄选择栏 */
-.hero-bar{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px}
-.hero-slot{width:50px;height:50px;border-radius:10px;border:2px solid #555;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px;transition:all 0.2s}
-.hero-slot.active{border-color:#ffd700;box-shadow:0 0 8px rgba(255,215,0,0.5)}
-.hero-slot.occupied{border-color:#4caf50}
-.hero-slot.locked{opacity:0.3;cursor:not-allowed}
+/* 右侧英雄信息 */
+.side{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:4px;z-index:15}
+.hero-info{background:rgba(0,0,0,.8);border:2px solid #4a90d9;border-radius:10px;padding:8px;width:65px;text-align:center}
+.hero-info .class-icon{font-size:28px}
+.hero-info .class-name{font-size:10px;color:#ffd700;margin:3px 0}
+.hero-info .lv{font-size:10px;color:#fff}
+.bar{height:4px;background:#333;border-radius:2px;margin:2px 0;overflow:hidden}
+.bar .fill{height:100%;border-radius:2px}
+.hp-fill{background:linear-gradient(90deg,#4caf50,#8bc34a)}
+.mp-fill{background:linear-gradient(90deg,#2196f3,#64b5f6)}
+.exp-fill{background:linear-gradient(90deg,#ff9800,#ffc107)}
+
+/* 塔位选择弹窗 */
+.tower-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:100;flex-direction:column}
+.tower-modal.show{display:flex}
+.tower-modal h3{color:#ffd700;font-size:20px;margin-bottom:15px}
+.tower-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:15px}
+.tower-btn{width:90px;height:90px;border-radius:12px;border:3px solid #555;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:12px;color:#fff}
+.tower-btn:hover{border-color:#4a90d9;transform:scale(1.05)}
+.tower-btn.active{border-color:#ffd700;box-shadow:0 0 10px rgba(255,215,0,.5)}
+.tower-btn .pos{font-size:24px;margin-bottom:5px}
 
 /* 转职弹窗 */
-.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:none;align-items:center;justify-content:center;z-index:500;flex-direction:column}
-.modal.show{display:flex}
-.modal-title{color:#ffd700;font-size:24px;font-weight:bold;margin-bottom:20px;text-shadow:2px 2px 4px #000}
-.modal-content{display:flex;gap:15px;flex-wrap:wrap;justify-content:center;padding:15px;max-width:100%}
-.class-card{width:130px;padding:15px;background:linear-gradient(180deg,#2a2a4a,#1a1a3a);border:3px solid #666;border-radius:12px;cursor:pointer;text-align:center;transition:all 0.3s}
-.class-card:hover{transform:scale(1.05)}
-.class-card.auto{border-color:#ff9800;animation:pulse 1.5s infinite}
-.class-card .icon{font-size:40px;margin-bottom:8px}
-.class-card .name{font-size:14px;font-weight:bold;color:#fff;margin-bottom:5px}
-.class-card .bonus{font-size:11px;color:#4caf50;margin-bottom:5px}
-.class-card .desc{font-size:10px;color:#aaa;line-height:1.3}
-@keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(255,152,0,0.5)}50%{box-shadow:0 0 25px rgba(255,152,0,0.8)}}
+.promo-modal{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:100;flex-direction:column}
+.promo-modal.show{display:flex}
+.promo-modal h3{color:#ffd700;font-size:22px;margin-bottom:20px}
+.promo-cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:10px}
+.promo-card{width:120px;padding:12px;background:linear-gradient(180deg,#2a2a4a,#1a1a3a);border:3px solid #666;border-radius:10px;cursor:pointer;text-align:center;transition:.3s}
+.promo-card:hover{transform:scale(1.05)}
+.promo-card.auto{border-color:#ff9800;animation:glow 1.5s infinite}
+.promo-card .icon{font-size:36px}
+.promo-card .name{font-size:13px;font-weight:bold;color:#fff;margin:5px 0}
+.promo-card .bonus{font-size:10px;color:#4caf50}
+.promo-card .desc{font-size:9px;color:#aaa;margin-top:4px}
+@keyframes glow{0%,100%{box-shadow:0 0 8px rgba(255,152,0,.4)}50%{box-shadow:0 0 20px rgba(255,152,0,.7)}}
 
 /* 波次提示 */
-.wave-alert{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);color:#ff6f00;font-size:32px;font-weight:bold;text-shadow:3px 3px 6px #000;display:none;pointer-events:none;z-index:200;text-align:center}
-.wave-alert.boss{color:#ff0000;font-size:40px}
-
-/* 伤害数字 */
-.damage-text{position:absolute;pointer-events:none;font-weight:bold;text-shadow:2px 2px 2px #000;z-index:150}
+.wave-announce{position:absolute;top:25%;left:50%;transform:translate(-50%,-50%);font-size:28px;font-weight:bold;text-shadow:3px 3px 6px #000;display:none;pointer-events:none;z-index:50;text-align:center}
+.wave-announce.boss{color:#ff4444;font-size:36px}
 
 /* 游戏结束 */
-.game-over{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;display:none;z-index:600}
-.game-over h2{color:#ff4444;font-size:36px;margin-bottom:15px;text-shadow:3px 3px 6px #000}
-.game-over p{color:#fff;font-size:18px;margin-bottom:20px}
-.game-over button{padding:15px 40px;font-size:18px;background:linear-gradient(180deg,#4a90d9,#2a6099);border:3px solid #6ab0f9;border-radius:25px;color:#fff;cursor:pointer;font-weight:bold}
+.gameover{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:200;flex-direction:column}
+.gameover.show{display:flex}
+.gameover h2{color:#ff4444;font-size:32px;text-shadow:3px 3px 6px #000}
+.gameover .stats{color:#fff;font-size:16px;margin:15px 0}
+.gameover .reason{color:#ff9800;font-size:14px;margin-bottom:15px}
+.gameover button{padding:12px 35px;font-size:16px;background:linear-gradient(180deg,#4a90d9,#2a6099);border:2px solid #6ab0f9;border-radius:20px;color:#fff;cursor:pointer;font-weight:bold}
 
-/* 塔位提示 */
-.tower-tooltip{position:absolute;background:rgba(0,0,0,0.9);border:2px solid #4a90d9;border-radius:8px;padding:10px;color:#fff;font-size:12px;display:none;z-index:300;pointer-events:none;min-width:120px}
+/* 提示文字 */
+.toast{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#ffd700;font-size:24px;font-weight:bold;text-shadow:2px 2px 4px #000;display:none;pointer-events:none;z-index:60}
 
-/* 升级按钮 */
-.upgrade-btn{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 20px;background:linear-gradient(180deg,#ffd700,#ff8c00);border:2px solid #fff;border-radius:20px;color:#000;font-size:14px;font-weight:bold;cursor:pointer;display:none;box-shadow:0 0 15px rgba(255,215,0,0.5)}
+/* 底部中间信息 */
+.mid-info{position:absolute;bottom:75px;left:50%;transform:translateX(-50%);display:flex;gap:15px;z-index:15}
+.mid-btn{padding:8px 15px;background:rgba(0,0,0,.7);border:2px solid #555;border-radius:15px;color:#fff;font-size:11px;cursor:pointer}
+.mid-btn:hover{border-color:#ffd700}
 </style>
 </head>
 <body>
-<div id="game-container">
+<div id="app">
   <canvas id="game"></canvas>
-  
   <div id="ui">
-    <!-- 顶部信息 -->
-    <div class="top-bar">
-      <div class="stat"><span class="stat-icon">⭐</span><span>Lv.<span id="hero-level">1</span></span></div>
-      <div class="stat"><span class="stat-icon">💰</span><span id="gold" class="stat-value">0</span></div>
-      <div class="stat"><span class="stat-icon">🌊</span><span>Wave <span id="wave" class="stat-value">1</span></span></div>
-      <div class="stat"><span class="stat-icon">💀</span><span id="kills" class="stat-value">0</span></div>
-      <div class="stat"><span class="stat-icon">👹</span><span id="enemy-count" class="stat-value">0</span>/200</div>
+    <div class="top">
+      <div class="item">⭐ Lv.<span class="val" id="lv">1</span></div>
+      <div class="item">💰 <span class="val" id="gold">0</span></div>
+      <div class="item">🌊 Wave <span class="val" id="wave">1</span></div>
+      <div class="item">💀 <span class="val" id="kills">0</span></div>
+      <div class="item">👹 <span class="val" id="enemies">0</span>/150</div>
     </div>
     
-    <!-- 英雄栏 -->
-    <div class="hero-bar">
-      <div class="hero-slot active" data-slot="0" title="英雄1">⚔️</div>
-      <div class="hero-slot locked" data-slot="1" title="解锁: Lv5">🔒</div>
-      <div class="hero-slot locked" data-slot="2" title="解锁: Lv10">🔒</div>
-      <div class="hero-slot locked" data-slot="3" title="解锁: Lv20">🔒</div>
-      <div class="hero-slot locked" data-slot="4" title="解锁: Lv30">🔒</div>
+    <div class="side">
+      <div class="hero-info">
+        <div class="class-icon" id="class-icon">⚔️</div>
+        <div class="class-name" id="class-name">战士</div>
+        <div class="lv">Lv.<span id="side-lv">1</span></div>
+        <div class="bar"><div class="fill hp-fill" id="hp-bar" style="width:100%"></div></div>
+        <div class="bar"><div class="fill mp-fill" id="mp-bar" style="width:100%"></div></div>
+        <div class="bar"><div class="fill exp-fill" id="exp-bar" style="width:0%"></div></div>
+      </div>
     </div>
     
-    <!-- 底部技能栏 -->
-    <div class="bottom-bar">
-      <div class="skill-btn ready" data-skill="0"><span class="icon">⚔️</span><span class="name">攻击</span></div>
-      <div class="skill-btn ready" data-skill="1"><span class="icon">🌀</span><span class="name">旋风</span></div>
-      <div class="skill-btn ready" data-skill="2"><span class="icon">💚</span><span class="name">治疗</span></div>
-      <div class="skill-btn ready" data-skill="3"><span class="icon">⚡</span><span class="name">大招</span></div>
+    <div class="mid-info">
+      <div class="mid-btn" id="btn-tower">📍 移动</div>
+      <div class="mid-btn" id="btn-upgrade">⬆️ 升级</div>
     </div>
     
-    <!-- 升级按钮 -->
-    <button class="upgrade-btn" id="upgrade-tower">升级塔位 💰100</button>
-    
-    <!-- 波次提示 -->
-    <div class="wave-alert" id="wave-alert">
-      <div id="wave-text">WAVE 1</div>
-      <div id="wave-sub" style="font-size:16px;margin-top:5px">准备战斗!</div>
+    <div class="bot">
+      <div class="sk on" data-skill="0"><span class="ic">⚔️</span><span class="nm">攻击</span></div>
+      <div class="sk on" data-skill="1"><span class="ic">🌀</span><span class="nm">旋风</span></div>
+      <div class="sk on" data-skill="2"><span class="ic">💚</span><span class="nm">治疗</span></div>
+      <div class="sk on" data-skill="3"><span class="ic">⚡</span><span class="nm">大招</span></div>
     </div>
     
-    <!-- 游戏结束 -->
-    <div class="game-over" id="game-over">
+    <div class="wave-announce" id="wave-ann"></div>
+    <div class="toast" id="toast"></div>
+    
+    <div class="gameover" id="gameover">
       <h2>GAME OVER</h2>
-      <p>波次: <span id="final-wave">1</span> | 击杀: <span id="final-kills">0</span></p>
-      <p id="final-reason" style="color:#ff9800;font-size:14px;margin-top:10px"></p>
+      <div class="stats">波次: <span id="go-wave">0</span> | 击杀: <span id="go-kills">0</span></div>
+      <div class="reason" id="go-reason"></div>
       <button onclick="location.reload()">再来一局</button>
     </div>
-    
-    <!-- 塔位提示 -->
-    <div class="tower-tooltip" id="tower-tooltip"></div>
+  </div>
+  
+  <!-- 塔位选择 -->
+  <div class="tower-modal" id="tower-modal">
+    <h3>选择站桩位置</h3>
+    <div class="tower-grid">
+      <div class="tower-btn" data-tower="0"><div class="pos">↖️</div>左上</div>
+      <div class="tower-btn" style="visibility:hidden"></div>
+      <div class="tower-btn" data-tower="1"><div class="pos">↗️</div>右上</div>
+      <div class="tower-btn" style="visibility:hidden"></div>
+      <div class="tower-btn active" data-tower="4"><div class="pos">⏺️</div>中心</div>
+      <div class="tower-btn" style="visibility:hidden"></div>
+      <div class="tower-btn" data-tower="2"><div class="pos">↙️</div>左下</div>
+      <div class="tower-btn" style="visibility:hidden"></div>
+      <div class="tower-btn" data-tower="3"><div class="pos">↘️</div>右下</div>
+    </div>
+    <div style="color:#aaa;font-size:11px;margin-top:10px;text-align:center;padding:0 20px">
+      💡 近战英雄适合中心，远程英雄适合四角
+    </div>
   </div>
   
   <!-- 转职弹窗 -->
-  <div class="modal" id="class-modal">
-    <div class="modal-title">选择转职方式</div>
-    <div class="modal-content" id="class-options"></div>
-    <div style="color:#aaa;font-size:12px;margin-top:15px;text-align:center;max-width:300px">
-      🎲 自动转职: +20%属性, 随机职业<br>
-      ✋ 手动转职: +10%属性, 自选职业
+  <div class="promo-modal" id="promo-modal">
+    <h3>选择转职方式</h3>
+    <div class="promo-cards" id="promo-cards"></div>
+    <div style="color:#aaa;font-size:11px;margin-top:15px;text-align:center;padding:0 20px">
+      🎲 自动转职: +20%属性，随机职业<br>
+      ✋ 手动转职: +10%属性，自选职业
     </div>
   </div>
 </div>
