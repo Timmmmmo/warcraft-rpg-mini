@@ -57,7 +57,7 @@ var dungeonActive = null, dungeonEnemy = null, dungeonTimer = 0;
 var hero = {
   cls: 'warrior', towerIdx: 4, lv: 1, exp: 0, expNeed: 100,
   hp: 150, maxHp: 150, mp: 80, maxMp: 80,
-  atk: 50, def: 8, atkTimer: 0,
+  atk: 30, def: 8, atkTimer: 0,
   crit: 0.1, critDmg: 2.0, promo: 0, buff: 1.0,
   skills: [
     { name:'小必杀', cd:0, maxCd:5, dmg:3.75, ic:'💫', aoe:0.506, type:'small' },
@@ -67,6 +67,7 @@ var hero = {
 
 var enemies = [], particles = [], effects = [], lastingEffects = [];
 var heroAnim = { bob: 0, frame: 0 };
+var showRangeTimer = 0;
 
 // 音效
 var audioCtx = null;
@@ -815,10 +816,16 @@ function drawHero() {
   var x = hp.x, y = hp.y + heroAnim.bob;
   var sz = 28; // 英雄大小
   
-  // 攻击范围
-  ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
-  ctx.setLineDash([5,5]); ctx.beginPath(); ctx.arc(x, y, hd.range*Math.min(W,H), 0, Math.PI*2); ctx.stroke();
-  ctx.setLineDash([]); ctx.restore();
+  // 攻击范围 (点击显示)
+  if (showRangeTimer > 0) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2;
+    ctx.setLineDash([8,4]); ctx.beginPath(); ctx.arc(x, y, hd.range*Math.min(W,H), 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath(); ctx.arc(x, y, hd.range*Math.min(W,H), 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
   
   // 光环效果
   ctx.save(); ctx.globalAlpha = 0.12 + Math.sin(Date.now()/500)*0.05;
@@ -977,6 +984,7 @@ function lighten(c, p) { return shade(c, Math.abs(p)); }
 function update() {
   if (state !== 'playing') return;
   if (moveCd > 0) moveCd -= 0.016;
+  if (showRangeTimer > 0) showRangeTimer--;
   if (hero.hp > 0) autoAtk();
   if (hero.mp < hero.maxMp) hero.mp += 0.06;
   for (var i = 0; i < hero.skills.length; i++) if (hero.skills[i].cd > 0) hero.skills[i].cd -= 0.016;
@@ -1040,12 +1048,23 @@ function setupEvents() {
       btn.addEventListener('click', fn);
     })(sks[i]);
   }
-  // 点击塔位移动
+  // 点击塔位移动或点击英雄显示范围
   canvas.addEventListener('click', function(e) {
-    if (state !== 'playing' || moveCd > 0) return;
+    if (state !== 'playing') return;
     var rect = canvas.getBoundingClientRect();
     var x = (e.clientX - rect.left) * (W / rect.width);
     var y = (e.clientY - rect.top) * (H / rect.height);
+    
+    // 检查是否点击了英雄
+    var hp = getHeroPos();
+    if (dist(x, y, hp.x, hp.y) < 35) {
+      showRangeTimer = 120; // 显示2秒
+      return;
+    }
+    
+    if (moveCd > 0) return;
+    
+    // 检查是否点击了塔位
     for (var i = 0; i < TOWERS.length; i++) {
       var t = TOWERS[i];
       var tx = t.x*W, ty = t.y*H;
@@ -1055,10 +1074,7 @@ function setupEvents() {
       }
     }
   });
-  // 副本按钮
-  document.getElementById('btn-dungeon').addEventListener('click', function() {
-    if (!dungeonActive) showDungeonMenu(); else showToast('已在副本中!');
-  });
+
   document.getElementById('btn-lvl').addEventListener('click', showLevelSelect);
   document.getElementById('btn-close-dungeon').addEventListener('click', function() {
     document.getElementById('dungeon-modal').classList.remove('show'); state = 'playing';

@@ -78,7 +78,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
       </div>
     </div>
     <div class="move-cd" id="move-cd"></div>
-    <div class="mid"><div class="mid-btn" id="btn-dungeon">⚔️ 副本</div></div>
+    <div class="mid"></div>
     <div class="bot">
       <div class="sk on" data-skill="0"><span class="ic">💫</span><span class="nm">小必杀</span></div>
       <div class="sk on" data-skill="1"><span class="ic">⚡</span><span class="nm">大必杀</span></div>
@@ -99,7 +99,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
     <div style="color:#888;font-size:11px;margin-top:15px">🎲自动+20% | ✋手动+10%</div>
   </div>
   
-  <div class="modal" id="dungeon-modal">
+  <div class="modal" id="dungeon-modal" onclick="if(event.target===this){document.getElementById('dungeon-modal').classList.remove('show');state='playing';}">
     <h3>⚔️ 副本挑战</h3>
     <div class="cards" id="dungeon-list"></div>
     <div class="lvl-panel" id="lvl-panel">
