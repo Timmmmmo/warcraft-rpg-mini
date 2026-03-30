@@ -19,20 +19,20 @@ var PATHS = { inner: [], outer: [] };
 
 // 职业
 var HEROES = {
-  warrior: { name:'战士', icon:'⚔️', color:'#ff1744', skin:'🗡️', range:0.2, type:'str', atkSpd:0.9, ultCd:25 },
-  archer: { name:'弓手', icon:'🏹', color:'#2979ff', skin:'🎯', range:0.35, type:'agi', atkSpd:0.45, ultCd:22 },
-  mage: { name:'法师', icon:'🔮', color:'#ffd600', skin:'✨', range:0.28, type:'int', atkSpd:0.7, ultCd:12 },
-  blademaster: { name:'剑圣', icon:'⚔️', color:'#ff5252', skin:'🗡️', range:0.22 },
-  mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', skin:'🔨', range:0.18 },
-  bloodmage: { name:'血法', icon:'🔥', color:'#d32f2f', skin:'🔥', range:0.25 },
-  windrunner: { name:'风行', icon:'💨', color:'#00e676', skin:'💨', range:0.4 },
-  shadowhunter: { name:'暗猎', icon:'🌑', color:'#7b1fa2', skin:'🗡️', range:0.33 },
-  frost: { name:'冰法', icon:'❄️', color:'#4fc3f7', skin:'❄️', range:0.3 },
-  storm: { name:'雷法', icon:'⚡', color:'#7c4dff', skin:'⚡', range:0.28 },
-  titan: { name:'泰坦', icon:'🏔️', color:'#ff8f00', skin:'🏔️', range:0.2 },
-  gale: { name:'疾风', icon:'🌪️', color:'#18ffff', skin:'🌪️', range:0.44 },
-  inferno: { name:'炎魔', icon:'🌋', color:'#ff6d00', skin:'🌋', range:0.28 },
-  phoenix: { name:'凤凰', icon:'🦚', color:'#ff4081', skin:'🦚', range:0.33 }
+  warrior: { name:'战士', icon:'⚔️', color:'#ff1744', skin:'🗡️', range:0.4, type:'str', atkSpd:0.9, ultCd:25 },
+  archer: { name:'弓手', icon:'🏹', color:'#2979ff', skin:'🎯', range:0.7, type:'agi', atkSpd:0.45, ultCd:22 },
+  mage: { name:'法师', icon:'🔮', color:'#ffd600', skin:'✨', range:0.56, type:'int', atkSpd:0.7, ultCd:12 },
+  blademaster: { name:'剑圣', icon:'⚔️', color:'#ff5252', skin:'🗡️', range:0.44 },
+  mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', skin:'🔨', range:0.36 },
+  bloodmage: { name:'血法', icon:'🔥', color:'#d32f2f', skin:'🔥', range:0.5 },
+  windrunner: { name:'风行', icon:'💨', color:'#00e676', skin:'💨', range:0.8 },
+  shadowhunter: { name:'暗猎', icon:'🌑', color:'#7b1fa2', skin:'🗡️', range:0.66 },
+  frost: { name:'冰法', icon:'❄️', color:'#4fc3f7', skin:'❄️', range:0.6 },
+  storm: { name:'雷法', icon:'⚡', color:'#7c4dff', skin:'⚡', range:0.56 },
+  titan: { name:'泰坦', icon:'🏔️', color:'#ff8f00', skin:'🏔️', range:0.4 },
+  gale: { name:'疾风', icon:'🌪️', color:'#18ffff', skin:'🌪️', range:0.88 },
+  inferno: { name:'炎魔', icon:'🌋', color:'#ff6d00', skin:'🌋', range:0.56 },
+  phoenix: { name:'凤凰', icon:'🦚', color:'#ff4081', skin:'🦚', range:0.66 }
 };
 
 var MONSTER_TYPES = {
@@ -57,7 +57,7 @@ var dungeonActive = null, dungeonEnemy = null, dungeonTimer = 0;
 var hero = {
   cls: 'warrior', towerIdx: 4, lv: 1, exp: 0, expNeed: 100,
   hp: 150, maxHp: 150, mp: 80, maxMp: 80,
-  atk: 25, def: 8, atkTimer: 0,
+  atk: 50, def: 8, atkTimer: 0,
   crit: 0.1, critDmg: 2.0, promo: 0, buff: 1.0,
   skills: [
     { name:'小必杀', cd:0, maxCd:5, dmg:3.75, ic:'💫', aoe:0.3375, type:'small' },
@@ -660,7 +660,13 @@ function updateUI() {
   document.getElementById('hp-bar').style.width = (hero.hp/hero.maxHp*100)+'%';
   document.getElementById('mp-bar').style.width = (hero.mp/hero.maxMp*100)+'%';
   document.getElementById('exp-bar').style.width = (hero.exp/hero.expNeed*100)+'%';
-  document.getElementById('move-cd').textContent = moveCd > 0 ? Math.ceil(moveCd)+'s' : '';
+  var moveCdEl = document.getElementById('move-cd');
+  if (moveCd > 0) {
+    moveCdEl.textContent = '移动冷却: ' + Math.ceil(moveCd) + 's';
+    moveCdEl.style.display = 'block';
+  } else {
+    moveCdEl.style.display = 'none';
+  }
   updateSkUI();
 }
 function updateSkUI() {
