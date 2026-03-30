@@ -1,633 +1,642 @@
 /**
- * 魔兽RPG V3.1 - 音效+皮肤+副本等级+转职优化
+ * 魔兽RPG V3.2 - 完全重写，修复显示问题
  */
 
-const C = { W: 400, H: 650, MAX_ENEMIES: 100, WAVE_CD: 22 };
+// 游戏常量
+var C = { MAX_ENEMIES: 100, WAVE_CD: 25 };
 
-let canvas, ctx;
-let state = 'playing';
-let gold = 0, wave = 1, waveT = 5, kills = 0, shake = 0;
-let moveCd = 0; // 移动CD
+// 全局变量
+var canvas, ctx, W, H;
+var state = 'playing';
+var gold = 0, wave = 1, waveT = 8, kills = 0, shake = 0;
+var moveCd = 0;
 
-// ====== 音效系统 ======
-const AudioCtx = window.AudioContext || window.webkitAudioContext;
-let audioCtx = null;
+// 塔位（百分比坐标）
+var TOWERS = [];
 
-function initAudio() {
-  if (!audioCtx) audioCtx = new AudioCtx();
-}
+// 路线
+var PATHS = { inner: [], outer: [] };
 
-function playSound(type) {
-  if (!audioCtx) return;
-  try {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    if (type === 'hit') {
-      osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-    } else if (type === 'kill') {
-      osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-    } else if (type === 'smallUlt') {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.2);
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.25);
-    } else if (type === 'bigUlt') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.3);
-      osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
-      gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.6);
-    } else if (type === 'levelUp') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-      osc.frequency.setValueAtTime(500, audioCtx.currentTime + 0.1);
-      osc.frequency.setValueAtTime(600, audioCtx.currentTime + 0.2);
-      osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.3);
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.5);
-    } else if (type === 'move') {
-      osc.frequency.setValueAtTime(500, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.08);
-    } else if (type === 'dungeonWin') {
-      osc.type = 'sine';
-      [523,659,784,1047].forEach((f,i) => {
-        osc.frequency.setValueAtTime(f, audioCtx.currentTime + i*0.15);
-      });
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.8);
-    }
-  } catch(e) {}
-}
-
-// ====== 塔位 ======
-const TOWERS = [
-  { x: 60, y: 120, name: '左上', lv: 1 },
-  { x: 340, y: 120, name: '右上', lv: 1 },
-  { x: 60, y: 530, name: '左下', lv: 1 },
-  { x: 340, y: 530, name: '右下', lv: 1 },
-  { x: 200, y: 325, name: '中心', lv: 1 }
-];
-
-const PATHS = {
-  inner: [{x:100,y:180},{x:300,y:180},{x:300,y:470},{x:100,y:470},{x:100,y:180}],
-  outer: [{x:30,y:60},{x:370,y:60},{x:370,y:590},{x:30,y:590},{x:30,y:60}]
+// 职业
+var HEROES = {
+  warrior: { name:'战士', icon:'⚔️', color:'#e53935', skin:'🗡️', range:0.2, type:'str', atkSpd:0.9, ultCd:25 },
+  archer: { name:'弓手', icon:'🏹', color:'#43a047', skin:'🎯', range:0.35, type:'agi', atkSpd:0.45, ultCd:22 },
+  mage: { name:'法师', icon:'🔮', color:'#1565c0', skin:'✨', range:0.28, type:'int', atkSpd:0.7, ultCd:12 },
+  blademaster: { name:'剑圣', icon:'⚔️', color:'#ff5252', skin:'🗡️', range:0.22 },
+  mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', skin:'🔨', range:0.18 },
+  bloodmage: { name:'血法', icon:'🔥', color:'#d32f2f', skin:'🔥', range:0.25 },
+  windrunner: { name:'风行', icon:'💨', color:'#00e676', skin:'💨', range:0.4 },
+  shadowhunter: { name:'暗猎', icon:'🌑', color:'#7b1fa2', skin:'🗡️', range:0.33 },
+  frost: { name:'冰法', icon:'❄️', color:'#4fc3f7', skin:'❄️', range:0.3 },
+  storm: { name:'雷法', icon:'⚡', color:'#7c4dff', skin:'⚡', range:0.28 },
+  titan: { name:'泰坦', icon:'🏔️', color:'#ff8f00', skin:'🏔️', range:0.2 },
+  gale: { name:'疾风', icon:'🌪️', color:'#18ffff', skin:'🌪️', range:0.44 },
+  inferno: { name:'炎魔', icon:'🌋', color:'#ff6d00', skin:'🌋', range:0.28 },
+  phoenix: { name:'凤凰', icon:'🦚', color:'#ff4081', skin:'🦚', range:0.33 }
 };
 
-// ====== 英雄系统 (含皮肤) ======
-const HEROES = {
-  warrior: { name:'战士', icon:'⚔️', color:'#e53935', skin:'🗡️', range:162, type:'str', atkSpd:0.9, ultCd:25, desc:'力量·高攻慢速' },
-  archer: { name:'弓手', icon:'🏹', color:'#43a047', skin:'🎯', range:288, type:'agi', atkSpd:0.45, ultCd:22, desc:'敏捷·快攻高伤' },
-  mage: { name:'法师', icon:'🔮', color:'#1565c0', skin:'✨', range:234, type:'int', atkSpd:0.7, ultCd:12, desc:'智力·技能频繁' },
-  blademaster: { name:'剑圣', icon:'⚔️', color:'#ff5252', skin:'🗡️⚔️', range:180, type:'str', atkSpd:0.85, ultCd:22 },
-  mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', skin:'🔨', range:150, type:'str', atkSpd:1.0, ultCd:28 },
-  bloodmage: { name:'血法', icon:'🔥', color:'#d32f2f', skin:'🔥🔮', range:216, type:'int', atkSpd:0.65, ultCd:10 },
-  windrunner: { name:'风行', icon:'💨', color:'#00e676', skin:'💨🏹', range:324, type:'agi', atkSpd:0.4, ultCd:20 },
-  shadowhunter: { name:'暗猎', icon:'🌑', color:'#7b1fa2', skin:'🗡️🌑', range:270, type:'agi', atkSpd:0.35, ultCd:18 },
-  frost: { name:'冰法', icon:'❄️', color:'#4fc3f7', skin:'❄️✨', range:252, type:'int', atkSpd:0.75, ultCd:11 },
-  storm: { name:'雷法', icon:'⚡', color:'#7c4dff', skin:'⚡🔮', range:234, type:'int', atkSpd:0.6, ultCd:8 },
-  titan: { name:'泰坦', icon:'🏔️', color:'#ff8f00', skin:'🏔️⚔️', range:168, type:'str', atkSpd:0.9, ultCd:30 },
-  gale: { name:'疾风', icon:'🌪️', color:'#18ffff', skin:'🌪️💨', range:360, type:'agi', atkSpd:0.35, ultCd:25 },
-  inferno: { name:'炎魔', icon:'🌋', color:'#ff6d00', skin:'🌋🔥', range:240, type:'int', atkSpd:0.6, ultCd:8 },
-  phoenix: { name:'凤凰', icon:'🦚', color:'#ff4081', skin:'🦚🔥', range:270, type:'int', atkSpd:0.55, ultCd:7 }
+var MONSTER_TYPES = {
+  normal: { name:'普通', col:'#66bb6a', hpMul:1, spdMul:1 },
+  fast: { name:'快速', col:'#00bcd4', hpMul:0.6, spdMul:1.8 },
+  tank: { name:'肉盾', col:'#8d6e63', hpMul:2.5, spdMul:0.6 },
+  elite: { name:'精英', col:'#e040fb', hpMul:2, spdMul:1 },
+  boss: { name:'BOSS', col:'#ffd600', hpMul:8, spdMul:0.7 }
 };
 
-// ====== 副本系统 (1-10级) ======
-const DUNGEONS = [
+// 副本
+var DUNGEONS = [
   { name:'金币副本', icon:'💰', type:'gold', levels:10 },
   { name:'经验副本', icon:'⭐', type:'exp', levels:10 },
-  { name:'Boss挑战', icon:'👹', type:'boss', levels:10 },
-  { name:'极限挑战', icon:'💀', type:'extreme', levels:10, unlock:10 }
+  { name:'Boss挑战', icon:'👹', type:'boss', levels:10 }
 ];
+var dungeonLevels = { gold:1, exp:1, boss:1 };
+var dungeonActive = null, dungeonEnemy = null, dungeonTimer = 0;
 
-// 副本等级配置
-function getDungeonStats(dungeon, level) {
-  const l = level; // 1-10
-  const base = {
-    gold: { hp: 100*l*l, time: 12+l*2, reward: 50*l*l, exp: 30*l, cost: Math.floor(10*l*l*0.5) },
-    exp: { hp: 80*l*l, time: 15+l*2, reward: 0, exp: 80*l, cost: Math.floor(15*l*l*0.5) },
-    boss: { hp: 200*l*l, time: 20+l*3, reward: 80*l*l, exp: 50*l, cost: Math.floor(20*l*l*0.5) },
-    extreme: { hp: 500*l*l, time: 25+l*3, reward: 200*l*l, exp: 150*l, cost: Math.floor(50*l*l*0.5) }
-  };
-  return base[dungeon.type];
-}
-
-// 副本等级进度
-let dungeonLevels = { gold:1, exp:1, boss:1, extreme:1 };
-
-// ====== 怪物类型 ======
-const MONSTER_TYPES = {
-  normal: { name:'普通', col:'#66bb6a', hpMul:1, atkMul:1, spdMul:1, expMul:1 },
-  fast: { name:'快速', col:'#00bcd4', hpMul:0.6, atkMul:0.8, spdMul:1.8, expMul:0.8 },
-  tank: { name:'肉盾', col:'#8d6e63', hpMul:2.5, atkMul:1.2, spdMul:0.6, expMul:1.5 },
-  elite: { name:'精英', col:'#e040fb', hpMul:2, atkMul:1.5, spdMul:1, expMul:2 },
-  magic: { name:'魔法', col:'#7c4dff', hpMul:0.8, atkMul:1.8, spdMul:1.1, expMul:1.3 },
-  boss: { name:'BOSS', col:'#ffd600', hpMul:8, atkMul:3, spdMul:0.7, expMul:5 }
-};
-
-let hero = {
+// 英雄
+var hero = {
   cls: 'warrior', towerIdx: 4, lv: 1, exp: 0, expNeed: 100,
   hp: 150, maxHp: 150, mp: 80, maxMp: 80,
   atk: 25, def: 8, atkTimer: 0,
   crit: 0.1, critDmg: 2.0, promo: 0, buff: 1.0,
   skills: [
-    { name:'小必杀', cd:0, maxCd:5, dmg:2.5, ic:'💫', aoe:120, type:'small' },
+    { name:'小必杀', cd:0, maxCd:5, dmg:2.5, ic:'💫', aoe:0.15, type:'small' },
     { name:'治疗', cd:0, maxCd:7, heal:40, ic:'💚', type:'heal' },
-    { name:'大必杀', cd:0, maxCd:20, dmg:2.1, ic:'⚡', aoe:280, type:'big' } // 70% (3.0*0.7=2.1)
+    { name:'大必杀', cd:0, maxCd:20, dmg:2.1, ic:'⚡', aoe:0.35, type:'big' }
   ]
 };
 
-function hPos() { return TOWERS[hero.towerIdx]; }
-function getHeroData() { return HEROES[hero.cls]; }
+var enemies = [], particles = [];
 
-let enemies = [], particles = [], warnings = [];
-
-// ====== 敌人类 ======
-class Enemy {
-  constructor(pathKey, typeKey) {
-    const path = pathKey === 'inner' ? PATHS.inner : PATHS.outer;
-    const type = MONSTER_TYPES[typeKey];
-    this.path = path; this.wp = 0; this.typeKey = typeKey;
-    this.x = path[0].x + (Math.random()-.5)*20;
-    this.y = path[0].y + (Math.random()-.5)*20;
-    this.boss = typeKey === 'boss'; this.typeName = type.name;
-    const wm = 1 + wave * 0.1;
-    this.hp = (50 + wave*12) * type.hpMul * wm; this.maxHp = this.hp;
-    this.atk = (8 + wave*2) * type.atkMul; this.def = 3 + wave*(this.boss?2:0.8);
-    this.spd = (pathKey==='inner'?1.6:1.0) * type.spdMul;
-    this.exp = Math.floor((20 + wave*8) * type.expMul);
-    this.sz = this.boss?32:(typeKey==='elite'?22:(typeKey==='tank'?24:16));
-    this.col = type.col; this.glow = typeKey==='elite'||typeKey==='magic'||this.boss;
-  }
-  update() {
-    const t = this.path[this.wp];
-    const dx = t.x-this.x, dy = t.y-this.y, d = Math.hypot(dx,dy);
-    if (d < this.spd+2) this.wp = (this.wp+1) % this.path.length;
-    else { this.x += dx/d*this.spd; this.y += dy/d*this.spd; }
-    return true;
-  }
-  draw() {
-    const {x,y,sz,col,boss,typeKey,typeName,glow,hp,maxHp} = this;
-    ctx.fillStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x,y+sz*.8,sz*.9,sz*.25,0,0,Math.PI*2); ctx.fill();
-    const g=ctx.createRadialGradient(x-sz*.2,y-sz*.3,sz*.1,x,y,sz);
-    g.addColorStop(0,shade(col,50)); g.addColorStop(.4,col); g.addColorStop(1,shade(col,-50));
-    ctx.fillStyle=g;
-    if(typeKey==='tank'){ctx.fillRect(x-sz,y-sz,sz*2,sz*2);ctx.strokeStyle=shade(col,-60);ctx.lineWidth=2;ctx.strokeRect(x-sz,y-sz,sz*2,sz*2);}
-    else if(typeKey==='magic'){ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/3*i-Math.PI/6;ctx.lineTo(x+Math.cos(a)*sz,y+Math.sin(a)*sz);}ctx.closePath();ctx.fill();ctx.strokeStyle=shade(col,-50);ctx.lineWidth=1.5;ctx.stroke();}
-    else{ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();ctx.strokeStyle=shade(col,-50);ctx.lineWidth=1.5;ctx.stroke();}
-    ctx.fillStyle='rgba(255,255,255,.2)';ctx.beginPath();ctx.arc(x-sz*.3,y-sz*.3,sz*.25,0,Math.PI*2);ctx.fill();
-    const ey=y-sz*.05,er=sz*.16;
-    ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x-sz*.28,ey,er,er*1.2,0,0,Math.PI*2);ctx.ellipse(x+sz*.28,ey,er,er*1.2,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=boss?'#f00':'#111';ctx.beginPath();ctx.arc(x-sz*.28,ey,er*.5,0,Math.PI*2);ctx.arc(x+sz*.28,ey,er*.5,0,Math.PI*2);ctx.fill();
-    if(glow){ctx.save();ctx.globalAlpha=.25+Math.sin(Date.now()/150)*.15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,sz+6,0,Math.PI*2);ctx.stroke();ctx.restore();}
-    if(boss){ctx.fillStyle='#ffd600';ctx.beginPath();ctx.moveTo(x-sz*.4,y-sz*.7);ctx.lineTo(x-sz*.25,y-sz*1.3);ctx.lineTo(x-sz*.1,y-sz*.6);ctx.fill();ctx.beginPath();ctx.moveTo(x+sz*.4,y-sz*.7);ctx.lineTo(x+sz*.25,y-sz*1.3);ctx.lineTo(x+sz*.1,y-sz*.6);ctx.fill();}
-    const bw=sz*2.2,by=y-sz-(boss?16:10);
-    ctx.fillStyle='#111';ctx.fillRect(x-bw/2,by,bw,5);ctx.fillStyle=hp/maxHp>.5?'#4caf50':hp/maxHp>.25?'#ff9800':'#f44336';ctx.fillRect(x-bw/2,by,bw*(hp/maxHp),5);
-    if(glow||boss){ctx.fillStyle=boss?'#ff4444':col;ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText(typeName,x,by-3);}
-  }
+// 音效
+var audioCtx = null;
+function initAudio() { if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+function playSound(type) {
+  if (!audioCtx) return;
+  try {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    if (type === 'hit') { osc.frequency.value = 300; gain.gain.value = 0.1; }
+    else if (type === 'kill') { osc.frequency.value = 500; gain.gain.value = 0.15; }
+    else if (type === 'ult') { osc.type = 'sawtooth'; osc.frequency.value = 200; gain.gain.value = 0.2; }
+    else { osc.frequency.value = 400; gain.gain.value = 0.1; }
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+  } catch(e) {}
 }
 
-// ====== 副本敌人 ======
-class DungeonEnemy {
-  constructor(d, level) {
-    const stats = getDungeonStats(d, level);
-    this.x=200; this.y=325; this.hp=stats.hp; this.maxHp=stats.hp;
-    this.sz=45; this.dungeon=d; this.level=level; this.time=stats.time; this.def=0;
+// 工具函数
+function dist(x1,y1,x2,y2) { return Math.sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)); }
+function shade(c,p) { if(!c||c[0]!=='#')return c; var n=parseInt(c.slice(1),16); var a=Math.round(2.55*p); return '#'+(0x1000000+Math.max(0,Math.min(255,(n>>16)+a))*0x10000+Math.max(0,Math.min(255,((n>>8)&0xff)+a))*0x100+Math.max(0,Math.min(255,(n&0xff)+a))).toString(16).slice(1); }
+
+function getHeroPos() { return { x: TOWERS[hero.towerIdx].x * W, y: TOWERS[hero.towerIdx].y * H }; }
+function getHeroData() { return HEROES[hero.cls] || HEROES.warrior; }
+
+// 初始化布局
+function initLayout() {
+  TOWERS = [
+    { x:0.15, y:0.18, name:'左上', lv:1 },
+    { x:0.85, y:0.18, name:'右上', lv:1 },
+    { x:0.15, y:0.82, name:'左下', lv:1 },
+    { x:0.85, y:0.82, name:'右下', lv:1 },
+    { x:0.5, y:0.5, name:'中心', lv:1 }
+  ];
+  PATHS.inner = [
+    {x:0.25,y:0.28},{x:0.75,y:0.28},{x:0.75,y:0.72},{x:0.25,y:0.72},{x:0.25,y:0.28}
+  ];
+  PATHS.outer = [
+    {x:0.08,y:0.09},{x:0.92,y:0.09},{x:0.92,y:0.91},{x:0.08,y:0.91},{x:0.08,y:0.09}
+  ];
+}
+
+// 敌人类
+function Enemy(pathKey, typeKey) {
+  var path = pathKey === 'inner' ? PATHS.inner : PATHS.outer;
+  var type = MONSTER_TYPES[typeKey];
+  this.path = path; this.wp = 0; this.pathKey = pathKey; this.typeKey = typeKey;
+  this.x = path[0].x + (Math.random()-0.5)*0.05;
+  this.y = path[0].y + (Math.random()-0.5)*0.05;
+  this.boss = typeKey === 'boss'; this.typeName = type.name;
+  var wm = 1 + wave * 0.1;
+  this.hp = (50 + wave*12) * type.hpMul * wm; this.maxHp = this.hp;
+  this.def = 3 + wave * (this.boss ? 2 : 0.8);
+  this.spd = (pathKey==='inner' ? 0.004 : 0.0025) * type.spdMul;
+  this.exp = Math.floor((20 + wave*8) * (this.boss ? 5 : 1));
+  this.sz = this.boss ? 0.04 : (typeKey==='elite' ? 0.028 : (typeKey==='tank' ? 0.03 : 0.02));
+  this.col = type.col;
+}
+Enemy.prototype.update = function() {
+  var t = this.path[this.wp];
+  var dx = t.x - this.x, dy = t.y - this.y;
+  var d = Math.sqrt(dx*dx + dy*dy);
+  if (d < this.spd + 0.01) { this.wp = (this.wp+1) % this.path.length; }
+  else { this.x += (dx/d)*this.spd; this.y += (dy/d)*this.spd; }
+  return true;
+};
+Enemy.prototype.draw = function() {
+  var x = this.x * W, y = this.y * H, sz = this.sz * Math.min(W,H);
+  // 影子
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(x, y+sz*0.8, sz*0.9, sz*0.25, 0, 0, Math.PI*2); ctx.fill();
+  // 身体
+  var g = ctx.createRadialGradient(x-sz*0.2, y-sz*0.3, sz*0.1, x, y, sz);
+  g.addColorStop(0, shade(this.col, 50)); g.addColorStop(0.4, this.col); g.addColorStop(1, shade(this.col, -50));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = shade(this.col, -60); ctx.lineWidth = 2; ctx.stroke();
+  // 眼睛
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(x-sz*0.3, y-sz*0.1, sz*0.18, 0, Math.PI*2); ctx.arc(x+sz*0.3, y-sz*0.1, sz*0.18, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = this.boss ? '#f00' : '#111';
+  ctx.beginPath(); ctx.arc(x-sz*0.3, y-sz*0.1, sz*0.08, 0, Math.PI*2); ctx.arc(x+sz*0.3, y-sz*0.1, sz*0.08, 0, Math.PI*2); ctx.fill();
+  // 血条
+  var bw = sz*2, by = y-sz-8;
+  ctx.fillStyle = '#222'; ctx.fillRect(x-bw/2, by, bw, 4);
+  ctx.fillStyle = this.hp/this.maxHp > 0.5 ? '#4caf50' : '#f44336';
+  ctx.fillRect(x-bw/2, by, bw*(this.hp/this.maxHp), 4);
+  // Boss角
+  if (this.boss) {
+    ctx.fillStyle = '#ffd600';
+    ctx.beginPath(); ctx.moveTo(x-sz*0.4, y-sz*0.7); ctx.lineTo(x-sz*0.2, y-sz*1.2); ctx.lineTo(x, y-sz*0.6); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+sz*0.4, y-sz*0.7); ctx.lineTo(x+sz*0.2, y-sz*1.2); ctx.lineTo(x, y-sz*0.6); ctx.fill();
   }
-  update(){return true;}
-  draw(){
-    const{x,y,sz,hp,maxHp,dungeon,level}=this;
-    ctx.save();ctx.shadowColor='#ffd700';ctx.shadowBlur=25;
-    const g=ctx.createRadialGradient(x,y,0,x,y,sz);g.addColorStop(0,'#fff9c4');g.addColorStop(.4,'#ffd700');g.addColorStop(1,'#ff8f00');ctx.fillStyle=g;
-    ctx.beginPath();for(let i=0;i<10;i++){const a=Math.PI/5*i-Math.PI/2;const r=i%2===0?sz:sz*.5;ctx.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);}ctx.closePath();ctx.fill();ctx.restore();
-    ctx.font='28px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(dungeon.icon,x,y);
-    ctx.fillStyle='#222';ctx.fillRect(x-35,y-sz-18,70,10);ctx.fillStyle='#ffd700';ctx.fillRect(x-35,y-sz-18,70*(hp/maxHp),10);ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(x-35,y-sz-18,70,10);
-    ctx.fillStyle='#ffd700';ctx.font='bold 12px Arial';ctx.textAlign='center';ctx.fillText(dungeon.name+' Lv.'+level,x,y-sz-30);
-    ctx.fillStyle=dungeonTimer<5?'#f44336':'#fff';ctx.font='bold 16px Arial';ctx.fillText(Math.ceil(dungeonTimer)+'s',x,y+sz+25);
-  }
+};
+
+// 副本敌人
+function DungeonEnemy(d, level) {
+  var hp = 100 * level * level * (d.type==='boss' ? 2 : 1);
+  this.x = 0.5; this.y = 0.5; this.hp = hp; this.maxHp = hp;
+  this.sz = 0.06; this.dungeon = d; this.level = level; this.def = 0;
 }
+DungeonEnemy.prototype.update = function() { return true; };
+DungeonEnemy.prototype.draw = function() {
+  var x = this.x*W, y = this.y*H, sz = this.sz*Math.min(W,H);
+  ctx.save(); ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 20;
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.font = 'bold '+(sz*0.8)+'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff'; ctx.fillText(this.dungeon.icon, x, y);
+  // 血条
+  ctx.fillStyle = '#222'; ctx.fillRect(x-40, y-sz-15, 80, 8);
+  ctx.fillStyle = '#ffd700'; ctx.fillRect(x-40, y-sz-15, 80*(this.hp/this.maxHp), 8);
+  // 计时
+  ctx.fillStyle = dungeonTimer < 5 ? '#f44336' : '#fff';
+  ctx.font = 'bold 16px Arial'; ctx.fillText(Math.ceil(dungeonTimer)+'s', x, y+sz+20);
+};
 
-// ====== 粒子/警告 ======
-class Part {
-  constructor(x,y,t,c,s){this.x=x;this.y=y;this.t=t;this.c=c;this.s=s||14;this.vy=-2.5;this.vx=(Math.random()-.5)*2.5;this.a=1;}
-  update(){this.x+=this.vx;this.y+=this.vy;this.vy+=.08;this.a-=.025;return this.a>0;}
-  draw(){ctx.save();ctx.globalAlpha=this.a;ctx.font=`bold ${this.s}px Arial`;ctx.textAlign='center';ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.strokeText(this.t,this.x,this.y);ctx.fillStyle=this.c;ctx.fillText(this.t,this.x,this.y);ctx.restore();}
-}
-function addP(x,y,t,c,s){particles.push(new Part(x,y,t,c,s));}
+// 粒子
+function Particle(x,y,t,c,s) { this.x=x; this.y=y; this.t=t; this.c=c; this.s=s||14; this.vy=-2; this.a=1; }
+Particle.prototype.update = function() { this.y += this.vy*0.016*60; this.vy += 0.08; this.a -= 0.025; return this.a > 0; };
+Particle.prototype.draw = function() {
+  ctx.save(); ctx.globalAlpha = this.a;
+  ctx.font = 'bold '+this.s+'px Arial'; ctx.textAlign = 'center';
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeText(this.t, this.x, this.y);
+  ctx.fillStyle = this.c; ctx.fillText(this.t, this.x, this.y);
+  ctx.restore();
+};
+function addP(x,y,t,c,s) { particles.push(new Particle(x,y,t,c,s)); }
 
-class Warning {
-  constructor(msg){this.msg=msg;this.alpha=1;this.timer=80;}
-  update(){this.timer--;this.alpha=this.timer/80;return this.timer>0;}
-  draw(){ctx.save();ctx.globalAlpha=this.alpha;ctx.fillStyle='#f44336';ctx.font='bold 20px Arial';ctx.textAlign='center';ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.strokeText(this.msg,200,300);ctx.fillText(this.msg,200,300);ctx.restore();}
-}
-
-function shade(c,p){if(!c||c[0]!=='#')return c;const n=parseInt(c.slice(1),16);const a=Math.round(2.55*p);return '#'+(0x1000000+Math.max(0,Math.min(255,(n>>16)+a))*0x10000+Math.max(0,Math.min(255,((n>>8)&0xff)+a))*0x100+Math.max(0,Math.min(255,(n&0xff)+a))).toString(16).slice(1);}
-
-// ====== 自动攻击 ======
-function autoAtk(){
-  hero.atkTimer+=.016;
-  const hd=getHeroData();
-  if(hero.atkTimer<hd.atkSpd)return;
-  hero.atkTimer=0;
-  const p=hPos(),range=hd.range+(hero.towerIdx===4?40:0);
+// 自动攻击
+function autoAtk() {
+  hero.atkTimer += 0.016;
+  var hd = getHeroData();
+  if (hero.atkTimer < hd.atkSpd) return;
+  hero.atkTimer = 0;
+  var hp = getHeroPos();
+  var range = hd.range * Math.min(W,H);
   
-  if(dungeonEnemy){
-    let dmg=Math.max(1,Math.floor(hero.atk*hero.buff));
-    if(Math.random()<hero.crit){dmg=Math.floor(dmg*hero.critDmg);addP(dungeonEnemy.x,dungeonEnemy.y-20,dmg+'!','#ffd700',16);}
-    else addP(dungeonEnemy.x,dungeonEnemy.y-20,'-'+dmg,'#ffd700',12);
-    dungeonEnemy.hp-=dmg; playSound('hit');
-    if(dungeonEnemy.hp<=0)completeDungeon();
+  if (dungeonEnemy) {
+    var dmg = Math.max(1, Math.floor(hero.atk * hero.buff));
+    dungeonEnemy.hp -= dmg;
+    addP(dungeonEnemy.x*W, dungeonEnemy.y*H-20, '-'+dmg, '#ffd700', 14);
+    playSound('hit');
+    if (dungeonEnemy.hp <= 0) completeDungeon();
     return;
   }
   
-  let t=null,md=Infinity;
-  for(const e of enemies){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<range&&d<md){md=d;t=e;}}
-  if(t){
-    let dmg=Math.max(1,Math.floor(hero.atk*hero.buff-t.def));
-    if(Math.random()<hero.crit){dmg=Math.floor(dmg*hero.critDmg);addP(t.x,t.y-15,dmg+'!','#ffd700',16);}
-    else addP(t.x,t.y-15,'-'+dmg,hd.color,12);
-    t.hp-=dmg; playSound('hit');
+  var target = null, md = Infinity;
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    var ex = e.x*W, ey = e.y*H;
+    var d = dist(hp.x, hp.y, ex, ey);
+    if (d < range && d < md) { md = d; target = e; }
+  }
+  if (target) {
+    var dmg = Math.max(1, Math.floor(hero.atk * hero.buff - target.def));
+    target.hp -= dmg;
+    addP(target.x*W, target.y*H-15, '-'+dmg, hd.color, 12);
+    playSound('hit');
   }
 }
 
-// ====== 技能 (3个: 小必杀/治疗/大必杀) ======
-function useSkill(idx){
-  const sk=hero.skills[idx];const costs=[12,8,25];
-  if(sk.cd>0||hero.mp<costs[idx])return;
-  sk.cd=sk.maxCd;hero.mp-=costs[idx];
-  const p=hPos(),hd=getHeroData();
+// 技能
+function useSkill(idx) {
+  var sk = hero.skills[idx];
+  var costs = [12, 8, 25];
+  if (sk.cd > 0 || hero.mp < costs[idx]) return;
+  sk.cd = sk.maxCd; hero.mp -= costs[idx];
+  var hp = getHeroPos();
+  var hd = getHeroData();
   
-  if(dungeonEnemy){
-    if(sk.type==='small'||sk.type==='big'){
-      const dmg=Math.max(1,Math.floor(hero.atk*sk.dmg*hero.buff));
-      dungeonEnemy.hp-=dmg;addP(dungeonEnemy.x,dungeonEnemy.y-20,'-'+dmg,'#ffd700',16);
-      shake=sk.type==='big'?10:5;
-      playSound(sk.type==='big'?'bigUlt':'smallUlt');
-      if(dungeonEnemy.hp<=0)completeDungeon();
-    }else if(sk.type==='heal'){hero.hp=Math.min(hero.maxHp,hero.hp+sk.heal);addP(p.x,p.y-25,'+'+sk.heal,'#4caf50',14);}
-    updateSkUI();return;
-  }
-  
-  if(sk.type==='small'){
-    let hit=0;
-    for(const e of enemies){if(Math.hypot(e.x-p.x,e.y-p.y)<sk.aoe){const dmg=Math.max(1,Math.floor(hero.atk*sk.dmg*hero.buff-e.def));e.hp-=dmg;hit++;addP(e.x,e.y-15,'-'+dmg,'#4fc3f7',13);}}
-    shake=6;addP(p.x,p.y-30,'小必杀!',hd.color,18);playSound('smallUlt');
-    for(let i=0;i<6;i++){const a=Math.PI*2/6*i;addP(p.x+Math.cos(a)*sk.aoe*.7,p.y+Math.sin(a)*sk.aoe*.7,'✦',hd.color,10);}
-  }else if(sk.type==='heal'){hero.hp=Math.min(hero.maxHp,hero.hp+sk.heal);addP(p.x,p.y-25,'+'+sk.heal,'#4caf50',14);}
-  else if(sk.type==='big'){
-    for(const e of enemies){const dmg=Math.max(1,Math.floor(hero.atk*sk.dmg*hero.buff-e.def));e.hp-=dmg;addP(e.x,e.y-15,'-'+dmg,'#ffd700',15);}
-    shake=12;addP(p.x,p.y-40,'大必杀!','#ffd700',26);playSound('bigUlt');
-    for(let i=0;i<10;i++)addP(Math.random()*C.W,Math.random()*C.H,'⚡','#ffd700',12);
+  if (sk.type === 'heal') {
+    hero.hp = Math.min(hero.maxHp, hero.hp + sk.heal);
+    addP(hp.x, hp.y-25, '+'+sk.heal, '#4caf50', 14);
+  } else if (sk.type === 'small' || sk.type === 'big') {
+    var aoe = sk.aoe * Math.min(W,H);
+    var hit = 0;
+    if (dungeonEnemy) {
+      var dmg = Math.max(1, Math.floor(hero.atk * sk.dmg * hero.buff));
+      dungeonEnemy.hp -= dmg;
+      addP(dungeonEnemy.x*W, dungeonEnemy.y*H-20, '-'+dmg, '#ffd700', 16);
+      if (dungeonEnemy.hp <= 0) completeDungeon();
+    } else {
+      for (var i = 0; i < enemies.length; i++) {
+        var e = enemies[i];
+        if (dist(hp.x, hp.y, e.x*W, e.y*H) < aoe) {
+          var dmg = Math.max(1, Math.floor(hero.atk * sk.dmg * hero.buff - e.def));
+          e.hp -= dmg; hit++;
+          addP(e.x*W, e.y*H-15, '-'+dmg, sk.type==='big'?'#ffd700':'#4fc3f7', 14);
+        }
+      }
+    }
+    shake = sk.type === 'big' ? 10 : 5;
+    playSound('ult');
+    addP(hp.x, hp.y-30, sk.name+'!', hd.color, 20);
   }
   updateSkUI();
 }
 
-// ====== 副本菜单 ======
-let selectedDungeon = null;
+// 副本
+function getDungeonStats(d, level) {
+  var l = level;
+  if (d.type === 'gold') return { hp:100*l*l, time:12+l*2, reward:50*l*l, exp:30*l, cost:Math.floor(10*l*l*0.5) };
+  if (d.type === 'exp') return { hp:80*l*l, time:15+l*2, reward:0, exp:80*l, cost:Math.floor(15*l*l*0.5) };
+  return { hp:200*l*l, time:20+l*3, reward:80*l*l, exp:50*l, cost:Math.floor(20*l*l*0.5) };
+}
 
-function showDungeonMenu(){
-  state='paused';selectedDungeon=null;
-  const modal=document.getElementById('dungeon-modal'),list=document.getElementById('dungeon-list');
-  list.innerHTML='';
-  for(const d of DUNGEONS){
-    const card=document.createElement('div');
-    const lvl=dungeonLevels[d.type];
-    const stats=getDungeonStats(d,lvl);
-    card.className='dungeon-card'+(hero.lv<(d.unlock||1)?' locked':'');
-    card.innerHTML=`<div class="icon">${d.icon}</div><div class="name">${d.name}</div><div class="level">当前等级: Lv.${lvl}</div><div class="desc">消耗:${stats.cost}金 | 奖励:${stats.exp}EXP${stats.reward>0?' + '+stats.reward+'金':''}</div><div class="time">限时:${stats.time}秒</div>`;
-    if(hero.lv>=(d.unlock||1)){
-      card.onclick=()=>{
-        selectedDungeon=d;
-        document.querySelectorAll('.dungeon-card').forEach(c=>c.style.borderColor='#555');
-        card.style.borderColor='#ffd700';
-      };
-    }
+var selectedDungeon = null;
+function showDungeonMenu() {
+  state = 'paused'; selectedDungeon = null;
+  var modal = document.getElementById('dungeon-modal');
+  var list = document.getElementById('dungeon-list');
+  list.innerHTML = '';
+  for (var i = 0; i < DUNGEONS.length; i++) {
+    var d = DUNGEONS[i];
+    var lvl = dungeonLevels[d.type];
+    var stats = getDungeonStats(d, lvl);
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = '<div class="icon">'+d.icon+'</div><div class="name">'+d.name+'</div><div class="level">Lv.'+lvl+'</div><div class="desc">消耗:'+stats.cost+'金 奖励:'+stats.exp+'EXP</div>';
+    card.dataset.idx = i;
+    card.onclick = function() { selectedDungeon = DUNGEONS[this.dataset.idx]; showLevelSelect(); };
     list.appendChild(card);
   }
-  document.getElementById('dungeon-level-select').style.display='none';
+  document.getElementById('lvl-panel').style.display = 'none';
   modal.classList.add('show');
 }
 
-function showLevelSelect(){
-  if(!selectedDungeon)return;
-  const panel=document.getElementById('dungeon-level-select');
-  const grid=document.getElementById('level-grid');
-  grid.innerHTML='';
-  const maxLvl=dungeonLevels[selectedDungeon.type];
-  for(let i=1;i<=10;i++){
-    const btn=document.createElement('div');
-    btn.className='level-btn'+(i>maxLvl?' locked':'');
-    btn.textContent='Lv.'+i;
-    if(i<=maxLvl){
-      btn.onclick=()=>{
-        const stats=getDungeonStats(selectedDungeon,i);
-        if(gold<stats.cost){showToast('金币不足!');return;}
-        enterDungeon(selectedDungeon,i);
+function showLevelSelect() {
+  if (!selectedDungeon) return;
+  var panel = document.getElementById('lvl-panel');
+  var grid = document.getElementById('lvl-grid');
+  grid.innerHTML = '';
+  var maxLvl = dungeonLevels[selectedDungeon.type];
+  for (var i = 1; i <= 10; i++) {
+    var btn = document.createElement('div');
+    btn.className = 'lvl-btn' + (i > maxLvl ? ' locked' : '');
+    btn.textContent = 'Lv.' + i;
+    if (i <= maxLvl) {
+      btn.dataset.lvl = i;
+      btn.onclick = function() {
+        var lvl = parseInt(this.dataset.lvl);
+        var stats = getDungeonStats(selectedDungeon, lvl);
+        if (gold < stats.cost) { showToast('金币不足!'); return; }
+        enterDungeon(selectedDungeon, lvl);
       };
     }
     grid.appendChild(btn);
   }
-  panel.style.display='block';
+  panel.style.display = 'block';
 }
 
-function enterDungeon(d,level){
-  const stats=getDungeonStats(d,level);
-  if(gold<stats.cost){showToast('金币不足!');return;}
-  gold-=stats.cost;dungeonActive=d;dungeonEnemy=new DungeonEnemy(d,level);dungeonTimer=stats.time;
-  document.getElementById('dungeon-modal').classList.remove('show');state='playing';
+function enterDungeon(d, level) {
+  var stats = getDungeonStats(d, level);
+  if (gold < stats.cost) { showToast('金币不足!'); return; }
+  gold -= stats.cost;
+  dungeonActive = d;
+  dungeonEnemy = new DungeonEnemy(d, level);
+  dungeonTimer = stats.time;
+  document.getElementById('dungeon-modal').classList.remove('show');
+  state = 'playing';
   showToast('进入'+d.name+' Lv.'+level+'!');
 }
 
-function completeDungeon(){
-  const d=dungeonActive,lvl=dungeonEnemy.level;
-  const stats=getDungeonStats(d,lvl);
-  if(stats.reward>0){gold+=stats.reward;addP(200,300,'+'+stats.reward+'金!','#ffd700',22);}
-  gainExp(stats.exp);addP(200,280,'+'+stats.exp+'EXP!','#4fc3f7',20);
-  // 升级副本等级
-  if(dungeonLevels[d.type]===lvl&&lvl<10){
-    dungeonLevels[d.type]++;
-    showToast(d.name+'解锁Lv.'+dungeonLevels[d.type]+'!');
-  }
-  dungeonEnemy=null;dungeonActive=null;
-  playSound('dungeonWin');
+function completeDungeon() {
+  var d = dungeonActive, lvl = dungeonEnemy.level;
+  var stats = getDungeonStats(d, lvl);
+  if (stats.reward > 0) { gold += stats.reward; addP(W/2, H/2, '+'+stats.reward+'金!', '#ffd700', 20); }
+  gainExp(stats.exp);
+  if (dungeonLevels[d.type] === lvl && lvl < 10) dungeonLevels[d.type]++;
+  dungeonEnemy = null; dungeonActive = null;
+  playSound('kill');
   showToast('副本完成!');
 }
 
-function failDungeon(){dungeonEnemy=null;dungeonActive=null;showToast('副本失败!');}
+function failDungeon() { dungeonEnemy = null; dungeonActive = null; showToast('副本失败!'); }
 
-// ====== 升级/转职 ======
-function gainExp(a){hero.exp+=a;while(hero.exp>=hero.expNeed){hero.exp-=hero.expNeed;levelUp();}}
-
-function levelUp(){
-  hero.lv++;hero.expNeed=Math.floor(100*Math.pow(hero.lv,1.15));
-  hero.maxHp+=25;hero.hp=hero.maxHp;hero.maxMp+=12;hero.mp=hero.maxMp;
-  hero.atk+=4;hero.def+=2;
-  const p=hPos();addP(p.x,p.y-35,'LEVEL UP!','#ffd700',18);
+// 升级/转职
+function gainExp(a) { hero.exp += a; while(hero.exp >= hero.expNeed) { hero.exp -= hero.expNeed; levelUp(); } }
+function levelUp() {
+  hero.lv++; hero.expNeed = Math.floor(100 * Math.pow(hero.lv, 1.15));
+  hero.maxHp += 25; hero.hp = hero.maxHp; hero.maxMp += 12; hero.mp = hero.maxMp;
+  hero.atk += 4; hero.def += 2;
+  var hp = getHeroPos();
+  addP(hp.x, hp.y-35, 'LEVEL UP!', '#ffd700', 18);
   playSound('levelUp');
-  // 5级一转, 10级二转
-  if(hero.lv===5&&hero.promo===0)showPromo();
-  if(hero.lv===10&&hero.promo===1)showPromo();
-  if(hero.lv===20&&hero.promo===2)showPromo();
+  if (hero.lv === 5 && hero.promo === 0) showPromo();
+  if (hero.lv === 10 && hero.promo === 1) showPromo();
 }
 
-function showPromo(){
-  state='paused';
-  const modal=document.getElementById('promo-modal'),cards=document.getElementById('promo-cards');
-  cards.innerHTML='';
-  const auto=document.createElement('div');
-  auto.className='promo-card auto';
-  auto.innerHTML='<div class="icon">🎲</div><div class="name">自动转职</div><div class="bonus">+20% 全属性</div><div class="desc">随机职业</div>';
-  auto.onclick=()=>doPromo(true);cards.appendChild(auto);
-  for(const o of getOptions()){
-    const c=document.createElement('div');c.className='promo-card';c.style.borderColor=o.color;
-    c.innerHTML=`<div class="icon">${o.icon}</div><div class="name">${o.name}</div><div class="bonus">+10% 属性</div><div class="desc">${o.desc||''}</div>`;
-    c.onclick=()=>doPromo(false,o.key);cards.appendChild(c);
+function showPromo() {
+  state = 'paused';
+  var modal = document.getElementById('promo-modal');
+  var cards = document.getElementById('promo-cards');
+  cards.innerHTML = '';
+  // 自动
+  var auto = document.createElement('div');
+  auto.className = 'card auto';
+  auto.innerHTML = '<div class="icon">🎲</div><div class="name">自动转职</div><div class="bonus">+20%</div>';
+  auto.onclick = function() { doPromo(true); };
+  cards.appendChild(auto);
+  // 手动选项
+  var opts = getPromoOptions();
+  for (var i = 0; i < opts.length; i++) {
+    var o = opts[i];
+    var c = document.createElement('div');
+    c.className = 'card'; c.style.borderColor = o.color;
+    c.innerHTML = '<div class="icon">'+o.icon+'</div><div class="name">'+o.name+'</div><div class="bonus">+10%</div>';
+    c.dataset.key = o.key;
+    c.onclick = function() { doPromo(false, this.dataset.key); };
+    cards.appendChild(c);
   }
   modal.classList.add('show');
 }
 
-function getOptions(){
-  const opts=[],hd=getHeroData();
-  if(hero.promo===0){
-    if(hd.type==='str'){opts.push({key:'blademaster',...HEROES.blademaster,desc:'快剑'});opts.push({key:'mountainking',...HEROES.mountainking,desc:'坦克'});}
-    else if(hd.type==='agi'){opts.push({key:'windrunner',...HEROES.windrunner,desc:'远程'});opts.push({key:'shadowhunter',...HEROES.shadowhunter,desc:'刺客'});}
-    else{opts.push({key:'bloodmage',...HEROES.bloodmage,desc:'火焰'});opts.push({key:'frost',...HEROES.frost,desc:'冰霜'});}
-  }else if(hero.promo===1){
-    if(hd.type==='str'){opts.push({key:'titan',...HEROES.titan,desc:'终极力量'});}
-    else if(hd.type==='agi'){opts.push({key:'gale',...HEROES.gale,desc:'终极敏捷'});}
-    else{opts.push({key:'storm',...HEROES.storm,desc:'雷法'});opts.push({key:'inferno',...HEROES.inferno,desc:'炎魔'});}
-  }else{
-    opts.push({key:'phoenix',...HEROES.phoenix,desc:'终极凤凰'});
+function getPromoOptions() {
+  var hd = getHeroData();
+  var opts = [];
+  if (hero.promo === 0) {
+    if (hd.type === 'str') { opts.push({key:'blademaster',...HEROES.blademaster}); opts.push({key:'mountainking',...HEROES.mountainking}); }
+    else if (hd.type === 'agi') { opts.push({key:'windrunner',...HEROES.windrunner}); opts.push({key:'shadowhunter',...HEROES.shadowhunter}); }
+    else { opts.push({key:'bloodmage',...HEROES.bloodmage}); opts.push({key:'frost',...HEROES.frost}); }
+  } else {
+    if (hd.type === 'str') opts.push({key:'titan',...HEROES.titan});
+    else if (hd.type === 'agi') opts.push({key:'gale',...HEROES.gale});
+    else opts.push({key:'storm',...HEROES.storm});
   }
   return opts;
 }
 
-function doPromo(auto,key){
-  const b=auto?1.2:1.1;
-  if(auto){const o=getOptions();key=o[Math.floor(Math.random()*o.length)].key;}
-  hero.cls=key;hero.buff*=b;
-  hero.atk=Math.floor(hero.atk*b);hero.def=Math.floor(hero.def*b);
-  hero.maxHp=Math.floor(hero.maxHp*b);hero.hp=hero.maxHp;
-  hero.maxMp=Math.floor(hero.maxMp*b);hero.mp=hero.maxMp;
-  hero.promo++;updateSkills();
-  document.getElementById('promo-modal').classList.remove('show');state='playing';
-  const p=hPos();addP(p.x,p.y-40,'转职:'+HEROES[key].name,'#ffd700',22);
+function doPromo(auto, key) {
+  var b = auto ? 1.2 : 1.1;
+  if (auto) { var o = getPromoOptions(); key = o[Math.floor(Math.random()*o.length)].key; }
+  hero.cls = key; hero.buff *= b;
+  hero.atk = Math.floor(hero.atk*b); hero.def = Math.floor(hero.def*b);
+  hero.maxHp = Math.floor(hero.maxHp*b); hero.hp = hero.maxHp;
+  hero.maxMp = Math.floor(hero.maxMp*b); hero.mp = hero.maxMp;
+  hero.promo++;
+  document.getElementById('promo-modal').classList.remove('show');
+  state = 'playing';
+  var hp = getHeroPos();
+  addP(hp.x, hp.y-40, '转职:'+HEROES[key].name, '#ffd700', 22);
   playSound('levelUp');
 }
 
-function updateSkills(){
-  const hd=getHeroData();
-  hero.skills[2].maxCd=hd.ultCd;
-  const cls=hero.cls;
-  if(['blademaster','titan'].includes(cls)){
-    hero.skills[0]={name:'剑气斩',cd:0,maxCd:3.5,dmg:2.8,ic:'💫',aoe:100,type:'small'};
-    hero.skills[2]={name:'剑刃风暴',cd:0,maxCd:hd.ultCd,dmg:2.5,ic:'🌪️',aoe:200,type:'big'};
-  }else if(cls==='mountainking'){
-    hero.skills[0]={name:'雷霆击',cd:0,maxCd:4,dmg:2.2,ic:'⚡',aoe:110,type:'small'};
-    hero.skills[2]={name:'天神下凡',cd:0,maxCd:hd.ultCd,dmg:1.8,ic:'🏔️',aoe:180,type:'big'};
-  }else if(['bloodmage','inferno'].includes(cls)){
-    hero.skills[0]={name:'烈焰',cd:0,maxCd:3,dmg:2.5,ic:'🔥',aoe:100,type:'small'};
-    hero.skills[2]={name:'地狱火',cd:0,maxDd:hd.ultCd,dmg:2.3,ic:'🌋',aoe:220,type:'big'};
-  }else if(['windrunner','gale'].includes(cls)){
-    hero.skills[0]={name:'穿透箭',cd:0,maxCd:3,dmg:2.5,ic:'🎯',aoe:120,type:'small'};
-    hero.skills[2]={name:'箭雨',cd:0,maxCd:hd.ultCd,dmg:2.3,ic:'🌧️',aoe:250,type:'big'};
-  }else if(cls==='shadowhunter'){
-    hero.crit=.25;
-    hero.skills[0]={name:'毒刃',cd:0,maxCd:2.5,dmg:3.0,ic:'🗡️',aoe:80,type:'small'};
-    hero.skills[2]={name:'暗影杀',cd:0,maxCd:hd.ultCd,dmg:2.8,ic:'🌑',aoe:180,type:'big'};
-  }else if(cls==='frost'){
-    hero.skills[0]={name:'冰锥',cd:0,maxCd:3,dmg:2.5,ic:'❄️',aoe:110,type:'small'};
-    hero.skills[2]={name:'暴风雪',cd:0,maxCd:hd.ultCd,dmg:2.1,ic:'🌨️',aoe:240,type:'big'};
-  }else if(cls==='storm'){
-    hero.skills[0]={name:'闪电链',cd:0,maxCd:2,dmg:2.0,ic:'⚡',aoe:100,type:'small'};
-    hero.skills[2]={name:'雷暴',cd:0,maxCd:hd.ultCd,dmg:2.5,ic:'🌩️',aoe:260,type:'big'};
-  }else if(cls==='phoenix'){
-    hero.skills[0]={name:'火翼',cd:0,maxCd:2.5,dmg:2.8,ic:'🔥',aoe:110,type:'small'};
-    hero.skills[2]={name:'涅槃',cd:0,maxCd:hd.ultCd,dmg:2.7,ic:'🦚',aoe:250,type:'big'};
-  }
-}
-
-// ====== 波次 ======
-function spawnWave(){
-  const count=6+Math.floor(wave*1.5),boss=wave%5===0;
-  const ann=document.getElementById('wave-ann');
-  ann.className=boss?'wave-announce boss':'wave-announce';
-  ann.innerHTML=boss?'⚠️ BOSS WAVE ⚠️<br><span style="font-size:16px">强大的敌人!</span>':`WAVE ${wave}<br><span style="font-size:16px">${count} 敌人</span>`;
-  ann.style.display='block';setTimeout(()=>ann.style.display='none',2000);
-  let n=0;
-  const iv=setInterval(()=>{
-    if(n>=count||state==='gameover'){clearInterval(iv);return;}
-    if(boss&&n===0)enemies.push(new Enemy('outer','boss'));
-    else{const path=Math.random()<.5?'inner':'outer';const r=Math.random();let type='normal';
-      if(wave>2&&r<.15)type='fast';else if(wave>4&&r<.25)type='tank';else if(wave>6&&r<.32)type='elite';else if(wave>8&&r<.38)type='magic';
-      enemies.push(new Enemy(path,type));}
+// 波次
+function spawnWave() {
+  var count = 6 + Math.floor(wave * 1.5);
+  var isBoss = wave % 5 === 0;
+  var ann = document.getElementById('wave-ann');
+  ann.className = isBoss ? 'wave-ann boss' : 'wave-ann';
+  ann.innerHTML = isBoss ? '⚠️ BOSS ⚠️' : 'WAVE ' + wave;
+  ann.style.display = 'block';
+  setTimeout(function() { ann.style.display = 'none'; }, 2000);
+  var n = 0;
+  var iv = setInterval(function() {
+    if (n >= count || state === 'gameover') { clearInterval(iv); return; }
+    if (isBoss && n === 0) enemies.push(new Enemy('outer', 'boss'));
+    else {
+      var path = Math.random() < 0.5 ? 'inner' : 'outer';
+      var r = Math.random();
+      var type = 'normal';
+      if (wave > 2 && r < 0.15) type = 'fast';
+      else if (wave > 4 && r < 0.25) type = 'tank';
+      else if (wave > 6 && r < 0.32) type = 'elite';
+      enemies.push(new Enemy(path, type));
+    }
     n++;
-  },400);
+  }, 500);
 }
 
-function checkEnd(){
-  const count=enemies.length;
-  if(count>=80&&count<100&&Math.random()<.08)warnings.push(new Warning('⚠️ 危险! '+count+'/100'));
-  if(count>=100)gameOver('敌人超过100个!');
-  if(hero.hp<=0)gameOver('英雄阵亡!');
+function checkEnd() {
+  if (enemies.length >= 100) gameOver('敌人超过100!');
+  if (hero.hp <= 0) gameOver('英雄阵亡!');
 }
-function gameOver(r){state='gameover';document.getElementById('go-wave').textContent=wave;document.getElementById('go-kills').textContent=kills;document.getElementById('go-reason').textContent=r;document.getElementById('gameover').classList.add('show');}
-function showToast(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',1500);}
+function gameOver(r) {
+  state = 'gameover';
+  document.getElementById('go-wave').textContent = wave;
+  document.getElementById('go-kills').textContent = kills;
+  document.getElementById('go-reason').textContent = r;
+  document.getElementById('gameover').classList.add('show');
+}
+function showToast(t) { var e = document.getElementById('toast'); e.textContent = t; e.style.display = 'block'; setTimeout(function() { e.style.display = 'none'; }, 1500); }
 
-function updateUI(){
-  document.getElementById('lv').textContent=hero.lv;
-  document.getElementById('side-lv').textContent=hero.lv;
-  document.getElementById('gold').textContent=gold;
-  document.getElementById('wave').textContent=wave;
-  document.getElementById('kills').textContent=kills;
-  document.getElementById('enemies').textContent=enemies.length;
-  document.getElementById('enemies').style.color=enemies.length>80?'#f44336':enemies.length>60?'#ff9800':'#ffd700';
-  const hd=getHeroData();
-  document.getElementById('class-icon').textContent=hd.icon;
-  document.getElementById('class-name').textContent=hd.name;
-  document.getElementById('class-skin').textContent=hd.skin;
-  document.getElementById('hp-bar').style.width=(hero.hp/hero.maxHp*100)+'%';
-  document.getElementById('mp-bar').style.width=(hero.mp/hero.maxMp*100)+'%';
-  document.getElementById('exp-bar').style.width=(hero.exp/hero.expNeed*100)+'%';
-  // 移动CD
-  document.getElementById('move-cd').textContent=moveCd>0?Math.ceil(moveCd)+'s':'';
+// UI更新
+function updateUI() {
+  document.getElementById('lv').textContent = hero.lv;
+  document.getElementById('side-lv').textContent = hero.lv;
+  document.getElementById('gold').textContent = gold;
+  document.getElementById('wave').textContent = wave;
+  document.getElementById('kills').textContent = kills;
+  document.getElementById('enemies').textContent = enemies.length;
+  document.getElementById('enemies').style.color = enemies.length > 80 ? '#f44336' : enemies.length > 60 ? '#ff9800' : '#ffd700';
+  var hd = getHeroData();
+  document.getElementById('class-skin').textContent = hd.skin;
+  document.getElementById('class-name').textContent = hd.name;
+  document.getElementById('hp-bar').style.width = (hero.hp/hero.maxHp*100)+'%';
+  document.getElementById('mp-bar').style.width = (hero.mp/hero.maxMp*100)+'%';
+  document.getElementById('exp-bar').style.width = (hero.exp/hero.expNeed*100)+'%';
+  document.getElementById('move-cd').textContent = moveCd > 0 ? Math.ceil(moveCd)+'s' : '';
   updateSkUI();
 }
-
-function updateSkUI(){
-  const costs=[12,8,25];
-  for(let i=0;i<3;i++){
-    const btn=document.querySelector(`[data-skill="${i}"]`),sk=hero.skills[i];
-    btn.querySelector('.ic').textContent=sk.ic;
-    btn.querySelector('.nm').textContent=sk.name;
-    const old=btn.querySelector('.cd');if(old)old.remove();
-    if(sk.cd>0){btn.classList.add('off');btn.classList.remove('on');const d=document.createElement('div');d.className='cd';d.textContent=Math.ceil(sk.cd);btn.appendChild(d);}
-    else if(hero.mp<costs[i]){btn.classList.add('off');btn.classList.remove('on');}
-    else{btn.classList.remove('off');btn.classList.add('on');}
+function updateSkUI() {
+  var costs = [12, 8, 25];
+  for (var i = 0; i < 3; i++) {
+    var btn = document.querySelector('[data-skill="'+i+'"]');
+    var sk = hero.skills[i];
+    btn.querySelector('.ic').textContent = sk.ic;
+    btn.querySelector('.nm').textContent = sk.name;
+    var old = btn.querySelector('.cd'); if (old) old.remove();
+    if (sk.cd > 0) {
+      btn.classList.add('off'); btn.classList.remove('on');
+      var d = document.createElement('div'); d.className = 'cd'; d.textContent = Math.ceil(sk.cd); btn.appendChild(d);
+    } else if (hero.mp < costs[i]) { btn.classList.add('off'); btn.classList.remove('on'); }
+    else { btn.classList.remove('off'); btn.classList.add('on'); }
   }
 }
 
-// ====== 绘制 ======
-function drawMap(){
-  const bg=ctx.createLinearGradient(0,0,0,C.H);bg.addColorStop(0,'#1a2a1a');bg.addColorStop(1,'#0d1b0d');ctx.fillStyle=bg;ctx.fillRect(0,0,C.W,C.H);
-  ctx.fillStyle='rgba(34,139,34,.06)';for(let i=0;i<50;i++){ctx.beginPath();ctx.arc((i*67)%C.W,(i*89)%C.H,10+i%12,0,Math.PI*2);ctx.fill();}
-  drawPath(PATHS.outer,'rgba(80,60,30,.5)',36);drawPath(PATHS.outer,'rgba(120,80,40,.6)',30);
-  drawPath(PATHS.inner,'rgba(60,60,100,.4)',30);drawPath(PATHS.inner,'rgba(80,80,130,.5)',24);
-  ctx.fillStyle='rgba(255,255,255,.3)';ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.fillText('外环',100,48);ctx.fillText('内环',130,168);
-  for(let i=0;i<5;i++){
-    const t=TOWERS[i],active=hero.towerIdx===i;
-    ctx.fillStyle='rgba(255,255,255,.03)';ctx.beginPath();ctx.arc(t.x,t.y,32,0,Math.PI*2);ctx.fill();
-    if(active){ctx.save();ctx.globalAlpha=.2+Math.sin(Date.now()/300)*.15;ctx.fillStyle='rgba(255,215,0,.1)';ctx.beginPath();ctx.arc(t.x,t.y,36,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffd700';ctx.lineWidth=2;ctx.beginPath();ctx.arc(t.x,t.y,32+Math.sin(Date.now()/200)*4,0,Math.PI*2);ctx.stroke();ctx.restore();}
-    ctx.strokeStyle=active?'#ffd700':'rgba(150,150,150,.5)';ctx.lineWidth=active?3:2;ctx.beginPath();ctx.arc(t.x,t.y,26,0,Math.PI*2);ctx.stroke();ctx.fillStyle=active?'rgba(74,144,217,.15)':'rgba(50,50,50,.2)';ctx.fill();
-    ctx.fillStyle=active?'#ffd700':'rgba(255,255,255,.4)';ctx.font=active?'bold 10px Arial':'9px Arial';ctx.textAlign='center';
-    ctx.fillText((active?'📍':'')+t.name,t.x,t.y+38);
+// 绘制
+function drawMap() {
+  var bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#1a2a1a'); bg.addColorStop(1, '#0d1b0d');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  // 路线
+  drawPath(PATHS.outer, 'rgba(100,70,40,0.5)', 30);
+  drawPath(PATHS.inner, 'rgba(80,80,120,0.4)', 24);
+  // 塔位
+  for (var i = 0; i < TOWERS.length; i++) {
+    var t = TOWERS[i];
+    var tx = t.x*W, ty = t.y*H;
+    var active = hero.towerIdx === i;
+    ctx.strokeStyle = active ? '#ffd700' : 'rgba(150,150,150,0.5)';
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.beginPath(); ctx.arc(tx, ty, 25, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = active ? 'rgba(74,144,217,0.2)' : 'rgba(50,50,50,0.2)';
+    ctx.fill();
+    ctx.fillStyle = active ? '#ffd700' : 'rgba(255,255,255,0.4)';
+    ctx.font = (active ? 'bold ' : '') + '10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText((active?'📍':'') + t.name, tx, ty+38);
   }
 }
-
-function drawPath(path,col,w){ctx.strokeStyle=col;ctx.lineWidth=w;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.closePath();ctx.stroke();}
-
-function drawHero(){
-  const p=hPos(),hd=getHeroData();
-  ctx.save();ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;ctx.setLineDash([5,5]);ctx.beginPath();ctx.arc(p.x,p.y,hd.range,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();
-  ctx.save();ctx.globalAlpha=.12+Math.sin(Date.now()/500)*.06;const gl=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,38);gl.addColorStop(0,hd.color);gl.addColorStop(1,'transparent');ctx.fillStyle=gl;ctx.beginPath();ctx.arc(p.x,p.y,38,0,Math.PI*2);ctx.fill();ctx.restore();
-  const g=ctx.createRadialGradient(p.x-6,p.y-6,3,p.x,p.y,24);g.addColorStop(0,'#fff');g.addColorStop(.2,shade(hd.color,40));g.addColorStop(.5,hd.color);g.addColorStop(1,shade(hd.color,-40));ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,22,0,Math.PI*2);ctx.fill();
-  ctx.shadowColor=hd.color;ctx.shadowBlur=15;ctx.strokeStyle='#fff';ctx.lineWidth=2.5;ctx.stroke();ctx.shadowBlur=0;
-  ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.x,p.y,16,0,Math.PI*2);ctx.stroke();
-  // 皮肤图标
-  ctx.font='bold 14px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(hd.skin,p.x,p.y);
-  ctx.font='bold 10px Arial';ctx.fillStyle=hd.color;ctx.fillText(hd.name+' Lv.'+hero.lv,p.x,p.y+36);
-  const bw=48;ctx.fillStyle='#222';ctx.fillRect(p.x-bw/2,p.y-34,bw,6);ctx.fillStyle=hero.hp>hero.maxHp*.5?'#4caf50':'#f44336';ctx.fillRect(p.x-bw/2,p.y-34,bw*(hero.hp/hero.maxHp),6);ctx.strokeStyle='#444';ctx.lineWidth=1;ctx.strokeRect(p.x-bw/2,p.y-34,bw,6);
-  ctx.fillStyle='#1a1a3a';ctx.fillRect(p.x-bw/2,p.y-26,bw,4);ctx.fillStyle='#2196f3';ctx.fillRect(p.x-bw/2,p.y-26,bw*(hero.mp/hero.maxMp),4);
+function drawPath(path, col, w) {
+  ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(path[0].x*W, path[0].y*H);
+  for (var i = 1; i < path.length; i++) ctx.lineTo(path[i].x*W, path[i].y*H);
+  ctx.closePath(); ctx.stroke();
+}
+function drawHero() {
+  var hp = getHeroPos();
+  var hd = getHeroData();
+  // 攻击范围
+  ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+  ctx.setLineDash([5,5]); ctx.beginPath(); ctx.arc(hp.x, hp.y, hd.range*Math.min(W,H), 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+  // 光环
+  ctx.save(); ctx.globalAlpha = 0.15;
+  var gl = ctx.createRadialGradient(hp.x, hp.y, 0, hp.x, hp.y, 35);
+  gl.addColorStop(0, hd.color); gl.addColorStop(1, 'transparent');
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(hp.x, hp.y, 35, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  // 身体
+  var g = ctx.createRadialGradient(hp.x-5, hp.y-5, 3, hp.x, hp.y, 22);
+  g.addColorStop(0, '#fff'); g.addColorStop(0.3, hd.color); g.addColorStop(1, shade(hd.color, -40));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(hp.x, hp.y, 22, 0, Math.PI*2); ctx.fill();
+  ctx.shadowColor = hd.color; ctx.shadowBlur = 12;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.shadowBlur = 0;
+  // 皮肤
+  ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff'; ctx.fillText(hd.skin, hp.x, hp.y);
+  // 名字
+  ctx.font = 'bold 10px Arial'; ctx.fillStyle = hd.color;
+  ctx.fillText(hd.name+' Lv.'+hero.lv, hp.x, hp.y+36);
+  // 血蓝条
+  var bw = 44;
+  ctx.fillStyle = '#222'; ctx.fillRect(hp.x-bw/2, hp.y-32, bw, 5);
+  ctx.fillStyle = hero.hp > hero.maxHp*0.5 ? '#4caf50' : '#f44336';
+  ctx.fillRect(hp.x-bw/2, hp.y-32, bw*(hero.hp/hero.maxHp), 5);
+  ctx.fillStyle = '#1a1a3a'; ctx.fillRect(hp.x-bw/2, hp.y-26, bw, 3);
+  ctx.fillStyle = '#2196f3'; ctx.fillRect(hp.x-bw/2, hp.y-26, bw*(hero.mp/hero.maxMp), 3);
 }
 
-function update(){
-  if(state!=='playing')return;
-  if(moveCd>0)moveCd-=.016;
-  if(hero.hp>0)autoAtk();
-  if(hero.mp<hero.maxMp)hero.mp+=.06;
-  for(const s of hero.skills)if(s.cd>0)s.cd-=.016;
-  for(let i=enemies.length-1;i>=0;i--){enemies[i].update();if(enemies[i].hp<=0){kills++;gold+=enemies[i].boss?60:(8+Math.floor(wave/3));gainExp(enemies[i].exp);playSound('kill');addP(enemies[i].x,enemies[i].y,'+'+enemies[i].exp+'EXP','#4fc3f7',11);enemies.splice(i,1);}}
-  for(let i=particles.length-1;i>=0;i--)if(!particles[i].update())particles.splice(i,1);
-  for(let i=warnings.length-1;i>=0;i--)if(!warnings[i].update())warnings.splice(i,1);
-  if(dungeonActive){dungeonTimer-=.016;if(dungeonTimer<=0)failDungeon();}
-  waveT-=.016;if(waveT<=0){wave++;waveT=C.WAVE_CD+wave;spawnWave();}
-  if(shake>0)shake*=.85;if(shake<.5)shake=0;
-  checkEnd();updateUI();
+// 主循环
+function update() {
+  if (state !== 'playing') return;
+  if (moveCd > 0) moveCd -= 0.016;
+  if (hero.hp > 0) autoAtk();
+  if (hero.mp < hero.maxMp) hero.mp += 0.06;
+  for (var i = 0; i < hero.skills.length; i++) if (hero.skills[i].cd > 0) hero.skills[i].cd -= 0.016;
+  for (var i = enemies.length-1; i >= 0; i--) {
+    enemies[i].update();
+    if (enemies[i].hp <= 0) {
+      kills++; gold += enemies[i].boss ? 60 : 8;
+      gainExp(enemies[i].exp);
+      playSound('kill');
+      addP(enemies[i].x*W, enemies[i].y*H, '+'+enemies[i].exp+'EXP', '#4fc3f7', 11);
+      enemies.splice(i, 1);
+    }
+  }
+  for (var i = particles.length-1; i >= 0; i--) if (!particles[i].update()) particles.splice(i, 1);
+  if (dungeonActive) { dungeonTimer -= 0.016; if (dungeonTimer <= 0) failDungeon(); }
+  waveT -= 0.016;
+  if (waveT <= 0) { wave++; waveT = C.WAVE_CD + wave; spawnWave(); }
+  if (shake > 0) shake *= 0.85; if (shake < 0.5) shake = 0;
+  checkEnd(); updateUI();
 }
-
-function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);ctx.save();
-  if(shake>0)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
-  drawMap();for(const e of enemies)e.draw();if(dungeonEnemy)dungeonEnemy.draw();drawHero();for(const p of particles)p.draw();for(const w of warnings)w.draw();
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
+  drawMap();
+  for (var i = 0; i < enemies.length; i++) enemies[i].draw();
+  if (dungeonEnemy) dungeonEnemy.draw();
+  drawHero();
+  for (var i = 0; i < particles.length; i++) particles[i].draw();
   ctx.restore();
 }
+function loop() { update(); draw(); requestAnimationFrame(loop); }
 
-function loop(){update();draw();requestAnimationFrame(loop);}
-
-function init(){
-  canvas=document.getElementById('game');
-  ctx=canvas.getContext('2d');
-  var app=document.getElementById('app');
-  canvas.width=app.clientWidth;
-  canvas.height=app.clientHeight;
-  C.W=canvas.width;
-  C.H=canvas.height;
-  TOWERS[0]={x:C.W*0.15,y:C.H*0.18,name:'左上',lv:1};
-  TOWERS[1]={x:C.W*0.85,y:C.H*0.18,name:'右上',lv:1};
-  TOWERS[2]={x:C.W*0.15,y:C.H*0.82,name:'左下',lv:1};
-  TOWERS[3]={x:C.W*0.85,y:C.H*0.82,name:'右下',lv:1};
-  TOWERS[4]={x:C.W*0.5,y:C.H*0.5,name:'中心',lv:1};
-  PATHS.inner=[{x:C.W*0.25,y:C.H*0.28},{x:C.W*0.75,y:C.H*0.28},{x:C.W*0.75,y:C.H*0.72},{x:C.W*0.25,y:C.H*0.72},{x:C.W*0.25,y:C.H*0.28}];
-  PATHS.outer=[{x:C.W*0.08,y:C.H*0.09},{x:C.W*0.92,y:C.H*0.09},{x:C.W*0.92,y:C.H*0.91},{x:C.W*0.08,y:C.H*0.91},{x:C.W*0.08,y:C.H*0.09}];
+// 初始化
+function init() {
+  canvas = document.getElementById('game');
+  ctx = canvas.getContext('2d');
+  var app = document.getElementById('app');
+  W = canvas.width = app.clientWidth;
+  H = canvas.height = app.clientHeight;
+  initLayout();
   initAudio();
   requestAnimationFrame(loop);
   setupEvents();
-  document.addEventListener('click',initAudio,{once:true});
-  document.addEventListener('touchstart',initAudio,{once:true});
-});
-  document.addEventListener('touchstart',initAudio,{once:true});
+  // 首次点击初始化音频
+  document.addEventListener('click', function() { initAudio(); }, {once: true});
+  document.addEventListener('touchstart', function() { initAudio(); }, {once: true});
 }
 
-function setupEvents(){
-  document.querySelectorAll('.sk').forEach(b=>{
-    const fn=e=>{e.preventDefault();if(state==='playing')useSkill(+b.dataset.skill);};
-    b.addEventListener('touchstart',fn);b.addEventListener('click',fn);
-  });
-  canvas.addEventListener('click',e=>{
-    if(state!=='playing'||moveCd>0)return;
-    const rect=canvas.getBoundingClientRect();
-    const x=(e.clientX-rect.left)*(canvas.width/rect.width);
-    const y=(e.clientY-rect.top)*(canvas.height/rect.height);
-    for(let i=0;i<TOWERS.length;i++){
-      const t=TOWERS[i];
-      if(Math.hypot(x-t.x,y-t.y)<32){
-        if(hero.towerIdx!==i){hero.towerIdx=i;moveCd=3;addP(t.x,t.y-30,'移动!','#fff',14);playSound('move');}
+function setupEvents() {
+  // 技能按钮
+  var sks = document.querySelectorAll('.sk');
+  for (var i = 0; i < sks.length; i++) {
+    (function(btn) {
+      var fn = function(e) { e.preventDefault(); if (state === 'playing') useSkill(parseInt(btn.dataset.skill)); };
+      btn.addEventListener('touchstart', fn);
+      btn.addEventListener('click', fn);
+    })(sks[i]);
+  }
+  // 点击塔位移动
+  canvas.addEventListener('click', function(e) {
+    if (state !== 'playing' || moveCd > 0) return;
+    var rect = canvas.getBoundingClientRect();
+    var x = (e.clientX - rect.left) * (W / rect.width);
+    var y = (e.clientY - rect.top) * (H / rect.height);
+    for (var i = 0; i < TOWERS.length; i++) {
+      var t = TOWERS[i];
+      var tx = t.x*W, ty = t.y*H;
+      if (dist(x, y, tx, ty) < 35) {
+        if (hero.towerIdx !== i) { hero.towerIdx = i; moveCd = 3; addP(tx, ty-30, '移动!', '#fff', 14); playSound('move'); }
         return;
       }
     }
   });
-  document.getElementById('btn-dungeon').addEventListener('click',()=>{if(!dungeonActive)showDungeonMenu();else showToast('已在副本中!');});
-  document.getElementById('dungeon-close').addEventListener('click',()=>{document.getElementById('dungeon-modal').classList.remove('show');state='playing';});
-  document.getElementById('dungeon-confirm').addEventListener('click',showLevelSelect);
+  // 副本按钮
+  document.getElementById('btn-dungeon').addEventListener('click', function() {
+    if (!dungeonActive) showDungeonMenu(); else showToast('已在副本中!');
+  });
+  document.getElementById('btn-lvl').addEventListener('click', showLevelSelect);
+  document.getElementById('btn-close-dungeon').addEventListener('click', function() {
+    document.getElementById('dungeon-modal').classList.remove('show'); state = 'playing';
+  });
 }
 
-window.onload=init;
+// 启动
+window.onload = init;
