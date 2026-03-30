@@ -584,10 +584,26 @@ function draw(){
 function loop(){update();draw();requestAnimationFrame(loop);}
 
 function init(){
-  canvas=document.getElementById("game");ctx=canvas.getContext("2d");canvas.width=C.W;canvas.height=C.H;ctx.imageSmoothingEnabled=false;
-  initAudio();requestAnimationFrame(loop);setupEvents();
-  // 点击页面初始化音频
+  canvas=document.getElementById('game');
+  ctx=canvas.getContext('2d');
+  var app=document.getElementById('app');
+  canvas.width=app.clientWidth;
+  canvas.height=app.clientHeight;
+  C.W=canvas.width;
+  C.H=canvas.height;
+  TOWERS[0]={x:C.W*0.15,y:C.H*0.18,name:'左上',lv:1};
+  TOWERS[1]={x:C.W*0.85,y:C.H*0.18,name:'右上',lv:1};
+  TOWERS[2]={x:C.W*0.15,y:C.H*0.82,name:'左下',lv:1};
+  TOWERS[3]={x:C.W*0.85,y:C.H*0.82,name:'右下',lv:1};
+  TOWERS[4]={x:C.W*0.5,y:C.H*0.5,name:'中心',lv:1};
+  PATHS.inner=[{x:C.W*0.25,y:C.H*0.28},{x:C.W*0.75,y:C.H*0.28},{x:C.W*0.75,y:C.H*0.72},{x:C.W*0.25,y:C.H*0.72},{x:C.W*0.25,y:C.H*0.28}];
+  PATHS.outer=[{x:C.W*0.08,y:C.H*0.09},{x:C.W*0.92,y:C.H*0.09},{x:C.W*0.92,y:C.H*0.91},{x:C.W*0.08,y:C.H*0.91},{x:C.W*0.08,y:C.H*0.09}];
+  initAudio();
+  requestAnimationFrame(loop);
+  setupEvents();
   document.addEventListener('click',initAudio,{once:true});
+  document.addEventListener('touchstart',initAudio,{once:true});
+});
   document.addEventListener('touchstart',initAudio,{once:true});
 }
 
