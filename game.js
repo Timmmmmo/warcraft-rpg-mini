@@ -59,9 +59,9 @@ var hero = {
   atk: 25, def: 8, atkTimer: 0,
   crit: 0.1, critDmg: 2.0, promo: 0, buff: 1.0,
   skills: [
-    { name:'小必杀', cd:0, maxCd:5, dmg:2.5, ic:'💫', aoe:0.15, type:'small' },
+    { name:'小必杀', cd:0, maxCd:5, dmg:3.75, ic:'💫', aoe:0.15, type:'small' },
     { name:'治疗', cd:0, maxCd:7, heal:40, ic:'💚', type:'heal' },
-    { name:'大必杀', cd:0, maxCd:20, dmg:2.1, ic:'⚡', aoe:0.35, type:'big' }
+    { name:'大必杀', cd:0, maxCd:20, dmg:4.2, ic:'⚡', aoe:0.35, type:'big' }
   ]
 };
 
@@ -135,32 +135,132 @@ Enemy.prototype.update = function() {
 };
 Enemy.prototype.draw = function() {
   var x = this.x * W, y = this.y * H, sz = this.sz * Math.min(W,H);
+  var col = this.col;
+  var boss = this.boss;
+  var typeKey = this.typeKey;
+  
   // 影子
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.ellipse(x, y+sz*0.8, sz*0.9, sz*0.25, 0, 0, Math.PI*2); ctx.fill();
-  // 身体
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(x, y+sz*0.85, sz*0.8, sz*0.22, 0, 0, Math.PI*2); ctx.fill();
+  
+  // 身体渐变
   var g = ctx.createRadialGradient(x-sz*0.2, y-sz*0.3, sz*0.1, x, y, sz);
-  g.addColorStop(0, shade(this.col, 50)); g.addColorStop(0.4, this.col); g.addColorStop(1, shade(this.col, -50));
+  g.addColorStop(0, shade(col, 50)); g.addColorStop(0.4, col); g.addColorStop(1, shade(col, -40));
   ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = shade(this.col, -60); ctx.lineWidth = 2; ctx.stroke();
-  // 眼睛
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(x-sz*0.3, y-sz*0.1, sz*0.18, 0, Math.PI*2); ctx.arc(x+sz*0.3, y-sz*0.1, sz*0.18, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = this.boss ? '#f00' : '#111';
-  ctx.beginPath(); ctx.arc(x-sz*0.3, y-sz*0.1, sz*0.08, 0, Math.PI*2); ctx.arc(x+sz*0.3, y-sz*0.1, sz*0.08, 0, Math.PI*2); ctx.fill();
-  // 血条
-  var bw = sz*2, by = y-sz-8;
-  ctx.fillStyle = '#222'; ctx.fillRect(x-bw/2, by, bw, 4);
-  ctx.fillStyle = this.hp/this.maxHp > 0.5 ? '#4caf50' : '#f44336';
-  ctx.fillRect(x-bw/2, by, bw*(this.hp/this.maxHp), 4);
-  // Boss角
-  if (this.boss) {
-    ctx.fillStyle = '#ffd600';
-    ctx.beginPath(); ctx.moveTo(x-sz*0.4, y-sz*0.7); ctx.lineTo(x-sz*0.2, y-sz*1.2); ctx.lineTo(x, y-sz*0.6); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(x+sz*0.4, y-sz*0.7); ctx.lineTo(x+sz*0.2, y-sz*1.2); ctx.lineTo(x, y-sz*0.6); ctx.fill();
+  
+  // 根据类型画不同形状
+  if (typeKey === 'tank') {
+    // 肉盾: 方形圆角
+    roundRect(ctx, x-sz, y-sz, sz*2, sz*2, sz*0.3);
+    ctx.fill();
+    ctx.strokeStyle = shade(col, -50); ctx.lineWidth = 2; ctx.stroke();
+  } else if (typeKey === 'fast') {
+    // 快速: 尖形
+    ctx.beginPath();
+    ctx.moveTo(x, y-sz*1.2);
+    ctx.lineTo(x+sz, y+sz*0.3);
+    ctx.lineTo(x-sz, y+sz*0.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = shade(col, -50); ctx.lineWidth = 2; ctx.stroke();
+  } else {
+    // 默认圆形
+    ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = shade(col, -50); ctx.lineWidth = 2; ctx.stroke();
   }
+  
+  // 高光
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.beginPath(); ctx.arc(x-sz*0.3, y-sz*0.35, sz*0.25, 0, Math.PI*2); ctx.fill();
+  
+  // 脸部底色
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath(); ctx.arc(x, y+sz*0.1, sz*0.5, 0, Math.PI*2); ctx.fill();
+  
+  // 卡通眼睛(大眼睛)
+  var eyeY = y - sz*0.1;
+  var eyeSz = sz * 0.25;
+  // 眼白
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.ellipse(x-sz*0.3, eyeY, eyeSz, eyeSz*1.2, 0, 0, Math.PI*2);
+  ctx.ellipse(x+sz*0.3, eyeY, eyeSz, eyeSz*1.2, 0, 0, Math.PI*2);
+  ctx.fill();
+  // 瞳孔
+  ctx.fillStyle = boss ? '#ff0000' : '#222';
+  ctx.beginPath();
+  ctx.arc(x-sz*0.28, eyeY+2, eyeSz*0.5, 0, Math.PI*2);
+  ctx.arc(x+sz*0.28, eyeY+2, eyeSz*0.5, 0, Math.PI*2);
+  ctx.fill();
+  // 高光
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(x-sz*0.32, eyeY-2, eyeSz*0.25, 0, Math.PI*2);
+  ctx.arc(x+sz*0.24, eyeY-2, eyeSz*0.25, 0, Math.PI*2);
+  ctx.fill();
+  
+  // 嘴巴(坏笑)
+  ctx.strokeStyle = shade(col, -60); ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(x, y+sz*0.25, sz*0.2, 0.2*Math.PI, 0.8*Math.PI);
+  ctx.stroke();
+  
+  // Boss特殊装饰
+  if (boss) {
+    // 角
+    ctx.fillStyle = '#ffd600';
+    ctx.beginPath();
+    ctx.moveTo(x-sz*0.5, y-sz*0.6);
+    ctx.quadraticCurveTo(x-sz*0.4, y-sz*1.4, x-sz*0.1, y-sz*0.7);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x+sz*0.5, y-sz*0.6);
+    ctx.quadraticCurveTo(x+sz*0.4, y-sz*1.4, x+sz*0.1, y-sz*0.7);
+    ctx.fill();
+    // 光环
+    ctx.save();
+    ctx.globalAlpha = 0.3 + Math.sin(Date.now()/150)*0.2;
+    ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, sz+8, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+    // 名字
+    ctx.fillStyle = '#ff4444'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('BOSS', x, y-sz-22);
+  }
+  
+  // 精英光环
+  if (typeKey === 'elite') {
+    ctx.save();
+    ctx.globalAlpha = 0.25 + Math.sin(Date.now()/200)*0.15;
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, sz+5, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+  
+  // 血条
+  var bw = sz*2.2, bh = 5;
+  var bx = x-bw/2, by = y-sz-(boss ? 12 : 8);
+  ctx.fillStyle = '#111'; ctx.fillRect(bx, by, bw, bh);
+  var ratio = this.hp / this.maxHp;
+  ctx.fillStyle = ratio > 0.5 ? '#4caf50' : ratio > 0.25 ? '#ff9800' : '#f44336';
+  ctx.fillRect(bx, by, bw*ratio, bh);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
 };
+
+// 圆角矩形辅助函数
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
 
 // 副本敌人
 function DungeonEnemy(d, level) {
@@ -516,39 +616,161 @@ function drawPath(path, col, w) {
   for (var i = 1; i < path.length; i++) ctx.lineTo(path[i].x*W, path[i].y*H);
   ctx.closePath(); ctx.stroke();
 }
+// 卡通英雄绘制函数
 function drawHero() {
   var hp = getHeroPos();
   var hd = getHeroData();
+  var x = hp.x, y = hp.y;
+  var sz = 28; // 英雄大小
+  
   // 攻击范围
-  ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
-  ctx.setLineDash([5,5]); ctx.beginPath(); ctx.arc(hp.x, hp.y, hd.range*Math.min(W,H), 0, Math.PI*2); ctx.stroke();
+  ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+  ctx.setLineDash([5,5]); ctx.beginPath(); ctx.arc(x, y, hd.range*Math.min(W,H), 0, Math.PI*2); ctx.stroke();
   ctx.setLineDash([]); ctx.restore();
-  // 光环
-  ctx.save(); ctx.globalAlpha = 0.15;
-  var gl = ctx.createRadialGradient(hp.x, hp.y, 0, hp.x, hp.y, 35);
+  
+  // 光环效果
+  ctx.save(); ctx.globalAlpha = 0.12 + Math.sin(Date.now()/500)*0.05;
+  var gl = ctx.createRadialGradient(x, y, 0, x, y, 40);
   gl.addColorStop(0, hd.color); gl.addColorStop(1, 'transparent');
-  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(hp.x, hp.y, 35, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y, 40, 0, Math.PI*2); ctx.fill();
   ctx.restore();
-  // 身体
-  var g = ctx.createRadialGradient(hp.x-5, hp.y-5, 3, hp.x, hp.y, 22);
-  g.addColorStop(0, '#fff'); g.addColorStop(0.3, hd.color); g.addColorStop(1, shade(hd.color, -40));
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(hp.x, hp.y, 22, 0, Math.PI*2); ctx.fill();
-  ctx.shadowColor = hd.color; ctx.shadowBlur = 12;
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.shadowBlur = 0;
-  // 皮肤
-  ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#fff'; ctx.fillText(hd.skin, hp.x, hp.y);
+  
+  // 影子
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(x, y+sz*0.9, sz*0.7, sz*0.2, 0, 0, Math.PI*2); ctx.fill();
+  
+  // 身体(圆润)
+  var bodyGrad = ctx.createRadialGradient(x-5, y-8, 5, x, y, sz);
+  bodyGrad.addColorStop(0, lighten(hd.color, 40));
+  bodyGrad.addColorStop(0.5, hd.color);
+  bodyGrad.addColorStop(1, shade(hd.color, -30));
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.arc(x, y, sz, 0, Math.PI*2);
+  ctx.fill();
+  
+  // 边框发光
+  ctx.shadowColor = hd.color; ctx.shadowBlur = 15;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5;
+  ctx.stroke(); ctx.shadowBlur = 0;
+  
+  // 脸部底色(浅色圆形)
+  ctx.fillStyle = '#ffe0b2';
+  ctx.beginPath();
+  ctx.arc(x, y-2, sz*0.55, 0, Math.PI*2);
+  ctx.fill();
+  
+  // 眼睛(大眼睛卡通风格)
+  var eyeY = y - 5;
+  var eyeX = 8;
+  // 眼白
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.ellipse(x-eyeX, eyeY, 7, 8, 0, 0, Math.PI*2);
+  ctx.ellipse(x+eyeX, eyeY, 7, 8, 0, 0, Math.PI*2);
+  ctx.fill();
+  // 瞄孔
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.arc(x-eyeX+1, eyeY+1, 4, 0, Math.PI*2);
+  ctx.arc(x+eyeX+1, eyeY+1, 4, 0, Math.PI*2);
+  ctx.fill();
+  // 高光
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(x-eyeX-1, eyeY-2, 2, 0, Math.PI*2);
+  ctx.arc(x+eyeX-1, eyeY-2, 2, 0, Math.PI*2);
+  ctx.fill();
+  
+  // 嘴巴(微笑)
+  ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(x, y+5, 6, 0.1*Math.PI, 0.9*Math.PI);
+  ctx.stroke();
+  
+  // 腮红
+  ctx.fillStyle = 'rgba(255,150,150,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(x-12, y+2, 5, 3, 0, 0, Math.PI*2);
+  ctx.ellipse(x+12, y+2, 5, 3, 0, 0, Math.PI*2);
+  ctx.fill();
+  
+  // 根据职业添加特征
+  if (hd.type === 'str') {
+    // 力量型: 头盔/角
+    ctx.fillStyle = shade(hd.color, -20);
+    ctx.beginPath();
+    ctx.moveTo(x-sz*0.6, y-sz*0.7);
+    ctx.lineTo(x-sz*0.3, y-sz*1.3);
+    ctx.lineTo(x, y-sz*0.8);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x+sz*0.6, y-sz*0.7);
+    ctx.lineTo(x+sz*0.3, y-sz*1.3);
+    ctx.lineTo(x, y-sz*0.8);
+    ctx.fill();
+    // 武器标记
+    ctx.font = '14px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('⚔️', x+sz*0.8, y-sz*0.3);
+  } else if (hd.type === 'agi') {
+    // 敏捷型: 尖耳朵
+    ctx.fillStyle = '#ffe0b2';
+    ctx.beginPath();
+    ctx.moveTo(x-sz*0.8, y-5);
+    ctx.lineTo(x-sz*1.2, y-15);
+    ctx.lineTo(x-sz*0.6, y+2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x+sz*0.8, y-5);
+    ctx.lineTo(x+sz*1.2, y-15);
+    ctx.lineTo(x+sz*0.6, y+2);
+    ctx.fill();
+    // 武器标记
+    ctx.font = '14px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('🏹', x+sz*0.8, y-sz*0.3);
+  } else {
+    // 智力型: 帽子
+    ctx.fillStyle = hd.color;
+    ctx.beginPath();
+    ctx.moveTo(x, y-sz*1.5);
+    ctx.lineTo(x-sz*0.7, y-sz*0.6);
+    ctx.lineTo(x+sz*0.7, y-sz*0.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+    ctx.stroke();
+    // 帽檐
+    ctx.fillStyle = shade(hd.color, -20);
+    ctx.beginPath();
+    ctx.ellipse(x, y-sz*0.6, sz*0.8, sz*0.15, 0, 0, Math.PI*2);
+    ctx.fill();
+    // 武器标记
+    ctx.font = '14px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('🔮', x+sz*0.8, y-sz*0.3);
+  }
+  
   // 名字
-  ctx.font = 'bold 10px Arial'; ctx.fillStyle = hd.color;
-  ctx.fillText(hd.name+' Lv.'+hero.lv, hp.x, hp.y+36);
-  // 血蓝条
-  var bw = 44;
-  ctx.fillStyle = '#222'; ctx.fillRect(hp.x-bw/2, hp.y-32, bw, 5);
+  ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+  ctx.fillStyle = hd.color;
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+  ctx.strokeText(hd.name+' Lv.'+hero.lv, x, y+sz+18);
+  ctx.fillText(hd.name+' Lv.'+hero.lv, x, y+sz+18);
+  
+  // 血条
+  var bw = 50, bh = 6;
+  var bx = x-bw/2, by = y-sz-20;
+  ctx.fillStyle = '#222'; ctx.fillRect(bx, by, bw, bh);
   ctx.fillStyle = hero.hp > hero.maxHp*0.5 ? '#4caf50' : '#f44336';
-  ctx.fillRect(hp.x-bw/2, hp.y-32, bw*(hero.hp/hero.maxHp), 5);
-  ctx.fillStyle = '#1a1a3a'; ctx.fillRect(hp.x-bw/2, hp.y-26, bw, 3);
-  ctx.fillStyle = '#2196f3'; ctx.fillRect(hp.x-bw/2, hp.y-26, bw*(hero.mp/hero.maxMp), 3);
+  ctx.fillRect(bx, by, bw*(hero.hp/hero.maxHp), bh);
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
+  
+  // 蓝条
+  ctx.fillStyle = '#1a1a3a'; ctx.fillRect(bx, by+bh+2, bw, 4);
+  ctx.fillStyle = '#2196f3'; ctx.fillRect(bx, by+bh+2, bw*(hero.mp/hero.maxMp), 4);
 }
+
+// 颜色变亮函数
+function lighten(c, p) { return shade(c, Math.abs(p)); }
 
 // 主循环
 function update() {
