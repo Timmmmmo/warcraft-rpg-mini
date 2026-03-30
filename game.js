@@ -60,9 +60,8 @@ var hero = {
   atk: 25, def: 8, atkTimer: 0,
   crit: 0.1, critDmg: 2.0, promo: 0, buff: 1.0,
   skills: [
-    { name:'小必杀', cd:0, maxCd:5, dmg:3.75, ic:'💫', aoe:0.225, type:'small' },
-    { name:'治疗', cd:0, maxCd:7, heal:40, ic:'💚', type:'heal' },
-    { name:'大必杀', cd:0, maxCd:20, dmg:4.2, ic:'⚡', aoe:0.525, type:'big' }
+    { name:'小必杀', cd:0, maxCd:5, dmg:3.75, ic:'💫', aoe:0.3375, type:'small' },
+    { name:'大必杀', cd:0, maxCd:20, dmg:4.2, ic:'⚡', aoe:0.63, type:'big' }
   ]
 };
 
@@ -419,7 +418,7 @@ function autoAtk() {
 // 技能
 function useSkill(idx) {
   var sk = hero.skills[idx];
-  var costs = [12, 8, 25];
+  var costs = [12, 25];
   if (sk.cd > 0 || hero.mp < costs[idx]) return;
   sk.cd = sk.maxCd; hero.mp -= costs[idx];
   var hp = getHeroPos();
@@ -429,8 +428,6 @@ function useSkill(idx) {
     hero.hp = Math.min(hero.maxHp, hero.hp + sk.heal);
     addP(hp.x, hp.y-25, '+'+sk.heal, '#4caf50', 14);
     // 治疗特效
-    effects.push(new Effect('small', hp.x, hp.y, '#4caf50', 20));
-  } else if (sk.type === 'small' || sk.type === 'big') {
     var aoe = sk.aoe * Math.min(W,H);
     var hit = 0;
     // 添加技能特效
@@ -667,8 +664,8 @@ function updateUI() {
   updateSkUI();
 }
 function updateSkUI() {
-  var costs = [12, 8, 25];
-  for (var i = 0; i < 3; i++) {
+  var costs = [12, 25];
+  for (var i = 0; i < 2; i++) {
     var btn = document.querySelector('[data-skill="'+i+'"]');
     var sk = hero.skills[i];
     btn.querySelector('.ic').textContent = sk.ic;
