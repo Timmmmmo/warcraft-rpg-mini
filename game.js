@@ -335,54 +335,127 @@ LastingEffect.prototype.update = function() {
 };
 LastingEffect.prototype.draw = function() {
   var alpha = this.life / this.maxLife;
-  var pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+  var pulse = Math.sin(Date.now() / 80) * 0.3 + 0.7;
+  var time = Date.now();
   
   if (this.type === 'small') {
-    // 小必杀: 旋转光圈
+    // 小必杀: 多层旋转光环 + 能量波纹
     ctx.save();
-    ctx.globalAlpha = alpha * 0.4 * pulse;
-    ctx.strokeStyle = '#4fc3f7';
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe * (1 - alpha * 0.3), 0, Math.PI*2); ctx.stroke();
     
-    // 旋转光点
-    ctx.globalAlpha = alpha * 0.8;
+    // 内圈旋转
+    ctx.globalAlpha = alpha * 0.5 * pulse;
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe * 0.3 * pulse, 0, Math.PI*2); ctx.stroke();
+    
+    // 中圈旋转
+    ctx.strokeStyle = '#00bcd4';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe * 0.6, 0, Math.PI*2); ctx.stroke();
+    
+    // 外圈
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.strokeStyle = '#0097a7';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe, 0, Math.PI*2); ctx.stroke();
+    
+    // 旋转光点 (8个)
+    ctx.globalAlpha = alpha * 0.9;
     for (var i = 0; i < 8; i++) {
-      var angle = (Date.now() / 50 + i * 45) * Math.PI / 180;
-      var px = this.x + Math.cos(angle) * this.aoe * 0.7;
-      var py = this.y + Math.sin(angle) * this.aoe * 0.7;
+      var angle = (time / 40 + i * 45) * Math.PI / 180;
+      var radius = this.aoe * 0.5;
+      var px = this.x + Math.cos(angle) * radius;
+      var py = this.y + Math.sin(angle) * radius;
+      
+      // 光点发光
+      ctx.shadowColor = '#4fc3f7'; ctx.shadowBlur = 10;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+      
+      // 光点核心
       ctx.fillStyle = '#4fc3f7';
-      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2); ctx.fill();
     }
+    
+    // 中心能量
+    ctx.globalAlpha = alpha * 0.6;
+    var grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, 30);
+    grad.addColorStop(0, 'rgba(255,255,255,0.8)');
+    grad.addColorStop(0.5, 'rgba(79,195,247,0.5)');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(this.x, this.y, 30, 0, Math.PI*2); ctx.fill();
+    
     ctx.restore();
   } else if (this.type === 'big') {
-    // 大必杀: 闪电风暴
+    // 大必杀: 闪电风暴 + 火焰 + 超大范围
     ctx.save();
-    ctx.globalAlpha = alpha * 0.3;
-    ctx.fillStyle = '#ffd700';
+    
+    // 底层光晕
+    ctx.globalAlpha = alpha * 0.25;
+    var grad2 = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.aoe);
+    grad2.addColorStop(0, 'rgba(255,215,0,0.8)');
+    grad2.addColorStop(0.5, 'rgba(255,152,0,0.4)');
+    grad2.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad2;
     ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe, 0, Math.PI*2); ctx.fill();
     
-    // 随机闪电
-    ctx.globalAlpha = alpha * 0.7;
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-    for (var i = 0; i < 4; i++) {
-      if (Math.random() < 0.3) {
-        var angle = Math.random() * Math.PI * 2;
-        var dist2 = Math.random() * this.aoe;
-        var lx = this.x + Math.cos(angle) * dist2;
-        var ly = this.y + Math.sin(angle) * dist2;
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(lx, ly);
-        ctx.lineTo(lx + (Math.random()-0.5)*30, ly + (Math.random()-0.5)*30);
-        ctx.stroke();
+    // 外圈脉冲
+    ctx.globalAlpha = alpha * 0.6 * pulse;
+    ctx.strokeStyle = '#ff6f00'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe * (0.8 + pulse * 0.2), 0, Math.PI*2); ctx.stroke();
+    
+    // 内圈脉冲
+    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe * 0.5 * pulse, 0, Math.PI*2); ctx.stroke();
+    
+    // 随机闪电 (每帧不同)
+    ctx.globalAlpha = alpha * 0.8;
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+    ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 8;
+    for (var i = 0; i < 6; i++) {
+      var angle = Math.random() * Math.PI * 2;
+      var dist2 = Math.random() * this.aoe * 0.8;
+      var lx = this.x + Math.cos(angle) * dist2;
+      var ly = this.y + Math.sin(angle) * dist2;
+      
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y);
+      var segments = 3;
+      var sx = this.x, sy = this.y;
+      for (var j = 0; j < segments; j++) {
+        var ratio = (j + 1) / segments;
+        sx = this.x + (lx - this.x) * ratio + (Math.random() - 0.5) * 40;
+        sy = this.y + (ly - this.y) * ratio + (Math.random() - 0.5) * 40;
+        ctx.lineTo(sx, sy);
       }
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    
+    // 旋转火花
+    ctx.globalAlpha = alpha * 0.9;
+    for (var i = 0; i < 12; i++) {
+      var angle = (time / 30 + i * 30) * Math.PI / 180;
+      var radius = this.aoe * (0.3 + Math.sin(time / 200 + i) * 0.2);
+      var px = this.x + Math.cos(angle) * radius;
+      var py = this.y + Math.sin(angle) * radius;
+      
+      ctx.fillStyle = i % 2 === 0 ? '#ffd700' : '#ff6f00';
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
     }
     
-    // 外圈脉冲
-    ctx.globalAlpha = alpha * 0.5;
-    ctx.strokeStyle = '#ff6f00'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe * pulse, 0, Math.PI*2); ctx.stroke();
+    // 中心爆炸核心
+    ctx.globalAlpha = alpha * 0.7;
+    var coreGrad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, 40);
+    coreGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
+    coreGrad.addColorStop(0.3, 'rgba(255,215,0,0.7)');
+    coreGrad.addColorStop(0.6, 'rgba(255,152,0,0.4)');
+    coreGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath(); ctx.arc(this.x, this.y, 40, 0, Math.PI*2); ctx.fill();
+    
     ctx.restore();
   }
 };
@@ -621,9 +694,33 @@ function useSkill(idx) {
 // 副本
 function getDungeonStats(d, level) {
   var l = level;
-  if (d.type === 'gold') return { hp:100*l*l, time:12+l*2, reward:50*l*l, exp:30*l, cost:Math.floor(10*l*l*0.5) };
-  if (d.type === 'exp') return { hp:80*l*l, time:15+l*2, reward:0, exp:80*l, cost:Math.floor(15*l*l*0.5) };
-  return { hp:200*l*l, time:20+l*3, reward:80*l*l, exp:50*l, cost:Math.floor(20*l*l*0.5) };
+  // 副本经验设计: 让玩家能通过副本升级
+  // Lv1-3: 50-150EXP, Lv4-6: 200-500EXP, Lv7-10: 600-2000EXP
+  var expTable = [50, 100, 150, 200, 300, 400, 600, 800, 1200, 2000];
+  var baseExp = expTable[Math.min(l-1, 9)];
+  
+  if (d.type === 'gold') return { 
+    hp: 80*l*l + l*50, 
+    time: 15+l*2, 
+    reward: 30*l*l + l*20, 
+    exp: baseExp, 
+    cost: Math.max(5, Math.floor(5*l*l*0.3)) 
+  };
+  if (d.type === 'exp') return { 
+    hp: 60*l*l + l*40, 
+    time: 18+l*2, 
+    reward: 0, 
+    exp: Math.floor(baseExp * 1.5), // 经验副本多50%
+    cost: Math.max(8, Math.floor(8*l*l*0.3)) 
+  };
+  // Boss副本
+  return { 
+    hp: 150*l*l + l*100, 
+    time: 25+l*3, 
+    reward: 50*l*l + l*30, 
+    exp: Math.floor(baseExp * 1.2), 
+    cost: Math.max(10, Math.floor(10*l*l*0.3)) 
+  };
 }
 
 var selectedDungeon = null;
