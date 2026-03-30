@@ -686,7 +686,10 @@ function useSkill(idx) {
     }
     shake = sk.type === 'big' ? 12 : 5;
     playSound('ult');
-    addP(hp.x, hp.y-30, sk.name+'!', hd.color, 22);
+    // 显示技能名称
+    addP(hp.x, hp.y - 60, sk.name, sk.type === 'big' ? '#ffd700' : '#fff', sk.type === 'big' ? 32 : 24);
+    addP(hp.x, hp.y - 30, sk.ic, sk.type === 'big' ? '#ffd700' : hd.color, 28);
+    showRangeTimer = 30;
   }
   updateSkUI();
 }
@@ -725,10 +728,13 @@ function getDungeonStats(d, level) {
 
 var selectedDungeon = null;
 function showDungeonMenu() {
+  console.log('打开副本菜单');
   state = 'paused';
   selectedDungeon = null;
   var modal = document.getElementById('dungeon-modal');
   var list = document.getElementById('dungeon-list');
+  var lvlPanel = document.getElementById('lvl-panel');
+  
   list.innerHTML = '';
   
   for (var i = 0; i < DUNGEONS.length; i++) {
@@ -737,26 +743,42 @@ function showDungeonMenu() {
     var stats = getDungeonStats(d, lvl);
     var card = document.createElement('div');
     card.className = 'card';
-    card.innerHTML = '<div class="icon">'+d.icon+'</div><div class="name">'+d.name+'</div><div class="level">当前可挑战: Lv.'+lvl+'</div><div class="desc">消耗:'+stats.cost+'金 | 奖励:'+stats.exp+'EXP'+(stats.reward>0?' + '+stats.reward+'金':'')+'</div>';
+    card.style.cursor = 'pointer';
+    card.innerHTML = '<div class="icon">'+d.icon+'</div><div class="name">'+d.name+'</div><div class="level">可挑战: Lv.1-'+lvl+'</div><div class="desc">消耗:'+stats.cost+'金 | 奖励:'+stats.exp+'EXP</div>';
     card.dataset.idx = i;
-    card.onclick = function() {
-      selectedDungeon = DUNGEONS[this.dataset.idx];
-      showLevelSelect();
-      // 高亮选中的副本
-      var cards = list.querySelectorAll('.card');
-      for (var c = 0; c < cards.length; c++) cards[c].style.borderColor = '#666';
-      this.style.borderColor = '#ffd700';
-    };
+    
+    card.onclick = (function(idx) {
+      return function() {
+        selectedDungeon = DUNGEONS[idx];
+        console.log('选择副本:', selectedDungeon.name);
+        showLevelSelect();
+      };
+    })(i);
+    
     list.appendChild(card);
   }
-  document.getElementById('lvl-panel').style.display = 'none';
-  modal.classList.add('show');
+  
+  if (lvlPanel) lvlPanel.style.display = 'none';
+  if (modal) {
+    modal.classList.add('show');
+    console.log('副本菜单已显示');
+  }
 }
 
 function showLevelSelect() {
-  if (!selectedDungeon) return;
+  if (!selectedDungeon) {
+    console.log('未选择副本');
+    return;
+  }
+  console.log('显示等级选择:', selectedDungeon.name);
+  
   var panel = document.getElementById('lvl-panel');
   var grid = document.getElementById('lvl-grid');
+  if (!panel || !grid) {
+    console.log('找不到等级面板');
+    return;
+  }
+  
   grid.innerHTML = '';
   var maxLvl = dungeonLevels[selectedDungeon.type];
   
@@ -768,23 +790,26 @@ function showLevelSelect() {
     
     btn.className = 'lvl-btn' + (locked ? ' locked' : '') + (completed ? ' completed' : '');
     btn.textContent = 'Lv.' + i + (completed ? ' ✓' : '');
+    btn.style.cursor = (locked || completed) ? 'not-allowed' : 'pointer';
     
     if (i <= maxLvl && !completed) {
-      btn.dataset.dungeon = selectedDungeon.type;
-      btn.dataset.level = i;
-      btn.onclick = function() {
-        var dType = this.dataset.dungeon;
-        var lvl = parseInt(this.dataset.level);
-        var d = null;
-        for (var j = 0; j < DUNGEONS.length; j++) {
-          if (DUNGEONS[j].type === dType) { d = DUNGEONS[j]; break; }
-        }
-        if (d) {
-          var stats = getDungeonStats(d, lvl);
-          if (gold < stats.cost) { showToast('金币不足! 需要' + stats.cost + '金'); return; }
-          enterDungeon(d, lvl);
-        }
-      };
+      (function(dType, lvl) {
+        btn.onclick = function() {
+          console.log('选择等级:', lvl);
+          var d = null;
+          for (var j = 0; j < DUNGEONS.length; j++) {
+            if (DUNGEONS[j].type === dType) { d = DUNGEONS[j]; break; }
+          }
+          if (d) {
+            var stats = getDungeonStats(d, lvl);
+            if (gold < stats.cost) { 
+              showToast('金币不足! 需要' + stats.cost + '金'); 
+              return; 
+            }
+            enterDungeon(d, lvl);
+          }
+        };
+      })(selectedDungeon.type, i);
     }
     grid.appendChild(btn);
   }
@@ -1204,12 +1229,17 @@ function draw() {
   ctx.save();
   if (shake > 0) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
   drawMap();
+  // 先画持续效果 (在底层)
+  for (var i = 0; i < lastingEffects.length; i++) lastingEffects[i].draw();
+  // 画敌人
   for (var i = 0; i < enemies.length; i++) enemies[i].draw();
   if (dungeonEnemy) dungeonEnemy.draw();
+  // 画英雄
   drawHero();
-  for (var i = 0; i < particles.length; i++) particles[i].draw();
+  // 画特效 (在上层)
   for (var i = 0; i < effects.length; i++) effects[i].draw();
-  for (var i = 0; i < lastingEffects.length; i++) lastingEffects[i].draw();
+  // 画粒子 (最上层)
+  for (var i = 0; i < particles.length; i++) particles[i].draw();
   ctx.restore();
 }
 function loop() { update(); draw(); requestAnimationFrame(loop); }
@@ -1235,7 +1265,7 @@ function setupEvents() {
   var sks = document.querySelectorAll('.sk');
   for (var i = 0; i < sks.length; i++) {
     (function(btn) {
-      var fn = function(e) { e.preventDefault(); if (state === 'playing') useSkill(parseInt(btn.dataset.skill)); };
+      var fn = function(e) { e.preventDefault(); e.stopPropagation(); if (state === 'playing') useSkill(parseInt(btn.dataset.skill)); };
       btn.addEventListener('touchstart', fn);
       btn.addEventListener('click', fn);
     })(sks[i]);
@@ -1268,15 +1298,7 @@ function setupEvents() {
   });
 
   document.getElementById('btn-dvl').addEventListener('click', showLevelSelect);
-  // 副本按钮事件
-  var dungeonBtn = document.getElementById('btn-dungeon');
-  if (dungeonBtn) {
-    dungeonBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      if (!dungeonActive) showDungeonMenu();
-      else showToast('已在副本中!');
-    });
-  }
+
   document.getElementById('btn-close-dungeon').addEventListener('click', function() {
     document.getElementById('dungeon-modal').classList.remove('show'); state = 'playing';
   });
