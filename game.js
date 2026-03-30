@@ -628,19 +628,28 @@ function getDungeonStats(d, level) {
 
 var selectedDungeon = null;
 function showDungeonMenu() {
-  state = 'paused'; selectedDungeon = null;
+  state = 'paused';
+  selectedDungeon = null;
   var modal = document.getElementById('dungeon-modal');
   var list = document.getElementById('dungeon-list');
   list.innerHTML = '';
+  
   for (var i = 0; i < DUNGEONS.length; i++) {
     var d = DUNGEONS[i];
     var lvl = dungeonLevels[d.type];
     var stats = getDungeonStats(d, lvl);
     var card = document.createElement('div');
     card.className = 'card';
-    card.innerHTML = '<div class="icon">'+d.icon+'</div><div class="name">'+d.name+'</div><div class="level">Lv.'+lvl+'</div><div class="desc">消耗:'+stats.cost+'金 奖励:'+stats.exp+'EXP</div>';
+    card.innerHTML = '<div class="icon">'+d.icon+'</div><div class="name">'+d.name+'</div><div class="level">当前可挑战: Lv.'+lvl+'</div><div class="desc">消耗:'+stats.cost+'金 | 奖励:'+stats.exp+'EXP'+(stats.reward>0?' + '+stats.reward+'金':'')+'</div>';
     card.dataset.idx = i;
-    card.onclick = function() { selectedDungeon = DUNGEONS[this.dataset.idx]; showLevelSelect(); };
+    card.onclick = function() {
+      selectedDungeon = DUNGEONS[this.dataset.idx];
+      showLevelSelect();
+      // 高亮选中的副本
+      var cards = list.querySelectorAll('.card');
+      for (var c = 0; c < cards.length; c++) cards[c].style.borderColor = '#666';
+      this.style.borderColor = '#ffd700';
+    };
     list.appendChild(card);
   }
   document.getElementById('lvl-panel').style.display = 'none';
@@ -653,20 +662,31 @@ function showLevelSelect() {
   var grid = document.getElementById('lvl-grid');
   grid.innerHTML = '';
   var maxLvl = dungeonLevels[selectedDungeon.type];
+  
   for (var i = 1; i <= 10; i++) {
     var btn = document.createElement('div');
     var key = selectedDungeon.type + '_' + i;
     var completed = dungeonCompleted[key];
     var locked = i > maxLvl;
+    
     btn.className = 'lvl-btn' + (locked ? ' locked' : '') + (completed ? ' completed' : '');
     btn.textContent = 'Lv.' + i + (completed ? ' ✓' : '');
+    
     if (i <= maxLvl && !completed) {
-      btn.dataset.lvl = i;
+      btn.dataset.dungeon = selectedDungeon.type;
+      btn.dataset.level = i;
       btn.onclick = function() {
-        var lvl = parseInt(this.dataset.lvl);
-        var stats = getDungeonStats(selectedDungeon, lvl);
-        if (gold < stats.cost) { showToast('金币不足!'); return; }
-        enterDungeon(selectedDungeon, lvl);
+        var dType = this.dataset.dungeon;
+        var lvl = parseInt(this.dataset.level);
+        var d = null;
+        for (var j = 0; j < DUNGEONS.length; j++) {
+          if (DUNGEONS[j].type === dType) { d = DUNGEONS[j]; break; }
+        }
+        if (d) {
+          var stats = getDungeonStats(d, lvl);
+          if (gold < stats.cost) { showToast('金币不足! 需要' + stats.cost + '金'); return; }
+          enterDungeon(d, lvl);
+        }
       };
     }
     grid.appendChild(btn);
@@ -1151,6 +1171,15 @@ function setupEvents() {
   });
 
   document.getElementById('btn-dvl').addEventListener('click', showLevelSelect);
+  // 副本按钮事件
+  var dungeonBtn = document.getElementById('btn-dungeon');
+  if (dungeonBtn) {
+    dungeonBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (!dungeonActive) showDungeonMenu();
+      else showToast('已在副本中!');
+    });
+  }
   document.getElementById('btn-close-dungeon').addEventListener('click', function() {
     document.getElementById('dungeon-modal').classList.remove('show'); state = 'playing';
   });
