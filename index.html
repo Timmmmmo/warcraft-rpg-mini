@@ -456,3 +456,51 @@ showMessage('DEFEND!');
 </script>
 </body>
 </html>
+';ctx.lineWidth=2;ctx.stroke();
+  
+  // Spawn/End markers
+  ctx.fillStyle='#ef5350';
+  ctx.beginPath();ctx.arc(GAME_X+pathPoints[0].x,GAME_Y+pathPoints[0].y,8,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#4caf50';
+  ctx.beginPath();ctx.arc(GAME_X+pathPoints[pathPoints.length-1].x,GAME_Y+pathPoints[pathPoints.length-1].y,8,0,Math.PI*2);ctx.fill();
+  
+  // Entities
+  for(var i=0;i<enemies.length;i++)enemies[i].draw();
+  for(var i=0;i<projectiles.length;i++)projectiles[i].draw();
+  for(var i=0;i<particles.length;i++)particles[i].draw();
+  
+  // Player
+  var px=GAME_X+player.x,py=GAME_Y+player.y;
+  ctx.fillStyle='rgba(0,0,0,0.35)';ctx.beginPath();ctx.ellipse(px,py+18,16,5,0,0,Math.PI*2);ctx.fill();
+  var c=CLASSES[player.class];
+  ctx.fillStyle=c.color;
+  ctx.beginPath();ctx.arc(px,py,17,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.beginPath();ctx.arc(px-5,py-5,10,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath();ctx.arc(px-6,py-3,4,0,Math.PI*2);ctx.arc(px+6,py-3,4,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#000';
+  ctx.beginPath();ctx.arc(px-6,py-3,2,0,Math.PI*2);ctx.arc(px+6,py-3,2,0,Math.PI*2);ctx.fill();
+  
+  // Attack range when enemy near
+  var nearEnemy=false;
+  for(var i=0;i<enemies.length;i++){
+    var dist=Math.sqrt((enemies[i].x-player.x)**2+(enemies[i].y-player.y)**2);
+    if(dist<player.atkRange){nearEnemy=true;break;}
+  }
+  if(nearEnemy){
+    ctx.strokeStyle='rgba(74,144,217,0.3)';
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(px,py,player.atkRange,0,Math.PI*2);ctx.stroke();
+  }
+  
+  ctx.restore();
+}
+
+function loop(){update();draw();requestAnimationFrame(loop);}
+updateHUD();loop();
+showMessage('DEFEND THE BASE');
+})();
+</script>
+</body>
+</html>
