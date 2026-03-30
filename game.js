@@ -19,20 +19,20 @@ var PATHS = { inner: [], outer: [] };
 
 // 职业
 var HEROES = {
-  warrior: { name:'战士', icon:'⚔️', color:'#ff1744', skin:'🗡️', range:0.4, type:'str', atkSpd:0.9, ultCd:25 },
-  archer: { name:'弓手', icon:'🏹', color:'#2979ff', skin:'🎯', range:0.7, type:'agi', atkSpd:0.45, ultCd:22 },
-  mage: { name:'法师', icon:'🔮', color:'#ffd600', skin:'✨', range:0.56, type:'int', atkSpd:0.7, ultCd:12 },
-  blademaster: { name:'剑圣', icon:'⚔️', color:'#ff5252', skin:'🗡️', range:0.44 },
-  mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', skin:'🔨', range:0.36 },
-  bloodmage: { name:'血法', icon:'🔥', color:'#d32f2f', skin:'🔥', range:0.5 },
-  windrunner: { name:'风行', icon:'💨', color:'#00e676', skin:'💨', range:0.8 },
-  shadowhunter: { name:'暗猎', icon:'🌑', color:'#7b1fa2', skin:'🗡️', range:0.66 },
-  frost: { name:'冰法', icon:'❄️', color:'#4fc3f7', skin:'❄️', range:0.6 },
-  storm: { name:'雷法', icon:'⚡', color:'#7c4dff', skin:'⚡', range:0.56 },
-  titan: { name:'泰坦', icon:'🏔️', color:'#ff8f00', skin:'🏔️', range:0.4 },
-  gale: { name:'疾风', icon:'🌪️', color:'#18ffff', skin:'🌪️', range:0.88 },
-  inferno: { name:'炎魔', icon:'🌋', color:'#ff6d00', skin:'🌋', range:0.56 },
-  phoenix: { name:'凤凰', icon:'🦚', color:'#ff4081', skin:'🦚', range:0.66 }
+  warrior: { name:'战士', icon:'⚔️', color:'#ff1744', skin:'🗡️', range:0.6, type:'str', atkSpd:0.9, ultCd:25 },
+  archer: { name:'弓手', icon:'🏹', color:'#2979ff', skin:'🎯', range:1.05, type:'agi', atkSpd:0.45, ultCd:22 },
+  mage: { name:'法师', icon:'🔮', color:'#ffd600', skin:'✨', range:0.84, type:'int', atkSpd:0.7, ultCd:12 },
+  blademaster: { name:'剑圣', icon:'⚔️', color:'#ff5252', skin:'🗡️', range:0.66 },
+  mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', skin:'🔨', range:0.54 },
+  bloodmage: { name:'血法', icon:'🔥', color:'#d32f2f', skin:'🔥', range:0.75 },
+  windrunner: { name:'风行', icon:'💨', color:'#00e676', skin:'💨', range:1.2 },
+  shadowhunter: { name:'暗猎', icon:'🌑', color:'#7b1fa2', skin:'🗡️', range:0.99 },
+  frost: { name:'冰法', icon:'❄️', color:'#4fc3f7', skin:'❄️', range:0.9 },
+  storm: { name:'雷法', icon:'⚡', color:'#7c4dff', skin:'⚡', range:0.84 },
+  titan: { name:'泰坦', icon:'🏔️', color:'#ff8f00', skin:'🏔️', range:0.6 },
+  gale: { name:'疾风', icon:'🌪️', color:'#18ffff', skin:'🌪️', range:1.32 },
+  inferno: { name:'炎魔', icon:'🌋', color:'#ff6d00', skin:'🌋', range:0.84 },
+  phoenix: { name:'凤凰', icon:'🦚', color:'#ff4081', skin:'🦚', range:0.99 }
 };
 
 var MONSTER_TYPES = {
@@ -60,12 +60,12 @@ var hero = {
   atk: 50, def: 8, atkTimer: 0,
   crit: 0.1, critDmg: 2.0, promo: 0, buff: 1.0,
   skills: [
-    { name:'小必杀', cd:0, maxCd:5, dmg:3.75, ic:'💫', aoe:0.3375, type:'small' },
-    { name:'大必杀', cd:0, maxCd:20, dmg:4.2, ic:'⚡', aoe:0.63, type:'big' }
+    { name:'小必杀', cd:0, maxCd:5, dmg:3.75, ic:'💫', aoe:0.506, type:'small' },
+    { name:'大必杀', cd:0, maxCd:20, dmg:4.2, ic:'⚡', aoe:0.945, type:'big' }
   ]
 };
 
-var enemies = [], particles = [], effects = [];
+var enemies = [], particles = [], effects = [], lastingEffects = [];
 var heroAnim = { bob: 0, frame: 0 };
 
 // 音效
@@ -291,6 +291,94 @@ DungeonEnemy.prototype.draw = function() {
 };
 
 
+
+// 持续效果类 (2秒持续伤害/动画)
+function LastingEffect(type, x, y, aoe, dmg, duration) {
+  this.type = type; this.x = x; this.y = y; 
+  this.aoe = aoe; this.dmg = dmg;
+  this.life = duration || 120; // 2秒 = 120帧
+  this.maxLife = this.life;
+  this.tickTimer = 0;
+  this.tickRate = 30; // 每0.5秒伤害一次
+}
+LastingEffect.prototype.update = function() {
+  this.life--;
+  this.tickTimer++;
+  
+  // 持续伤害
+  if (this.tickTimer >= this.tickRate) {
+    this.tickTimer = 0;
+    var dmg = this.dmg;
+    if (dungeonEnemy) {
+      dungeonEnemy.hp -= dmg;
+      addP(dungeonEnemy.x*W, dungeonEnemy.y*H-20, '-'+dmg, '#ffd700', 12);
+      if (dungeonEnemy.hp <= 0) completeDungeon();
+    } else {
+      for (var i = 0; i < enemies.length; i++) {
+        var e = enemies[i];
+        if (dist(this.x, this.y, e.x*W, e.y*H) < this.aoe) {
+          e.hp -= dmg;
+          addP(e.x*W, e.y*H-15, '-'+dmg, this.type==='big'?'#ffd700':'#4fc3f7', 10);
+        }
+      }
+    }
+  }
+  return this.life > 0;
+};
+LastingEffect.prototype.draw = function() {
+  var alpha = this.life / this.maxLife;
+  var pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+  
+  if (this.type === 'small') {
+    // 小必杀: 旋转光圈
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.4 * pulse;
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe * (1 - alpha * 0.3), 0, Math.PI*2); ctx.stroke();
+    
+    // 旋转光点
+    ctx.globalAlpha = alpha * 0.8;
+    for (var i = 0; i < 8; i++) {
+      var angle = (Date.now() / 50 + i * 45) * Math.PI / 180;
+      var px = this.x + Math.cos(angle) * this.aoe * 0.7;
+      var py = this.y + Math.sin(angle) * this.aoe * 0.7;
+      ctx.fillStyle = '#4fc3f7';
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  } else if (this.type === 'big') {
+    // 大必杀: 闪电风暴
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe, 0, Math.PI*2); ctx.fill();
+    
+    // 随机闪电
+    ctx.globalAlpha = alpha * 0.7;
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    for (var i = 0; i < 4; i++) {
+      if (Math.random() < 0.3) {
+        var angle = Math.random() * Math.PI * 2;
+        var dist2 = Math.random() * this.aoe;
+        var lx = this.x + Math.cos(angle) * dist2;
+        var ly = this.y + Math.sin(angle) * dist2;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(lx, ly);
+        ctx.lineTo(lx + (Math.random()-0.5)*30, ly + (Math.random()-0.5)*30);
+        ctx.stroke();
+      }
+    }
+    
+    // 外圈脉冲
+    ctx.globalAlpha = alpha * 0.5;
+    ctx.strokeStyle = '#ff6f00'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.aoe * pulse, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+};
+
 // 特效类
 function Effect(type, x, y, color, duration) {
   this.type = type; this.x = x; this.y = y; this.color = color;
@@ -432,6 +520,9 @@ function useSkill(idx) {
     var hit = 0;
     // 添加技能特效
     effects.push(new Effect(sk.type, hp.x, hp.y, sk.type==='big'?'#ffd700':hd.color, sk.type==='big'?40:25));
+    // 添加持续效果(2秒)
+    var lastingDmg = Math.floor(hero.atk * sk.dmg * hero.buff * 0.15); // 每tick伤害
+    lastingEffects.push(new LastingEffect(sk.type, hp.x, hp.y, aoe, lastingDmg, 120));
     if (dungeonEnemy) {
       var dmg = Math.max(1, Math.floor(hero.atk * sk.dmg * hero.buff));
       dungeonEnemy.hp -= dmg;
@@ -901,6 +992,7 @@ function update() {
   }
   for (var i = particles.length-1; i >= 0; i--) if (!particles[i].update()) particles.splice(i, 1);
   for (var i = effects.length-1; i >= 0; i--) if (!effects[i].update()) effects.splice(i, 1);
+  for (var i = lastingEffects.length-1; i >= 0; i--) if (!lastingEffects[i].update()) lastingEffects.splice(i, 1);
   if (dungeonActive) { dungeonTimer -= 0.016; if (dungeonTimer <= 0) failDungeon(); }
   waveT -= 0.016;
   if (waveT <= 0) { wave++; waveT = C.WAVE_CD + wave; spawnWave(); }
@@ -917,6 +1009,7 @@ function draw() {
   drawHero();
   for (var i = 0; i < particles.length; i++) particles[i].draw();
   for (var i = 0; i < effects.length; i++) effects[i].draw();
+  for (var i = 0; i < lastingEffects.length; i++) lastingEffects[i].draw();
   ctx.restore();
 }
 function loop() { update(); draw(); requestAnimationFrame(loop); }
