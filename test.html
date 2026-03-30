@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test</title>
+<style>
+*{margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden;background:#000}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+var c=document.getElementById('c');
+var ctx=c.getContext('2d');
+c.width=window.innerWidth;
+c.height=window.innerHeight;
+
+// Draw test content
+ctx.fillStyle='#1a2a1a';
+ctx.fillRect(0,0,c.width,c.height);
+
+// Draw hero (center)
+ctx.fillStyle='#4a90d9';
+ctx.beginPath();
+ctx.arc(c.width/2, c.height/2, 30, 0, Math.PI*2);
+ctx.fill();
+ctx.fillStyle='#fff';
+ctx.font='20px Arial';
+ctx.textAlign='center';
+ctx.fillText('HERO', c.width/2, c.height/2+5);
+
+// Draw enemy
+ctx.fillStyle='#66bb6a';
+ctx.beginPath();
+ctx.arc(c.width/4, c.height/3, 20, 0, Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle='#ff4444';
+ctx.beginPath();
+ctx.arc(c.width*3/4, c.height/3, 20, 0, Math.PI*2);
+ctx.fill();
+
+// Text
+ctx.fillStyle='#ffd700';
+ctx.font='bold 24px Arial';
+ctx.fillText('Canvas Test OK!', c.width/2, 50);
+
+console.log('Canvas size:', c.width, 'x', c.height);
+</script>
+</body>
+</html>
