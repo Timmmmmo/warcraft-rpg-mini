@@ -19,9 +19,9 @@ var PATHS = { inner: [], outer: [] };
 
 // 职业
 var HEROES = {
-  warrior: { name:'战士', icon:'⚔️', color:'#e53935', skin:'🗡️', range:0.2, type:'str', atkSpd:0.9, ultCd:25 },
-  archer: { name:'弓手', icon:'🏹', color:'#43a047', skin:'🎯', range:0.35, type:'agi', atkSpd:0.45, ultCd:22 },
-  mage: { name:'法师', icon:'🔮', color:'#1565c0', skin:'✨', range:0.28, type:'int', atkSpd:0.7, ultCd:12 },
+  warrior: { name:'战士', icon:'⚔️', color:'#ff1744', skin:'🗡️', range:0.2, type:'str', atkSpd:0.9, ultCd:25 },
+  archer: { name:'弓手', icon:'🏹', color:'#2979ff', skin:'🎯', range:0.35, type:'agi', atkSpd:0.45, ultCd:22 },
+  mage: { name:'法师', icon:'🔮', color:'#ffd600', skin:'✨', range:0.28, type:'int', atkSpd:0.7, ultCd:12 },
   blademaster: { name:'剑圣', icon:'⚔️', color:'#ff5252', skin:'🗡️', range:0.22 },
   mountainking: { name:'山丘', icon:'🛡️', color:'#ffd700', skin:'🔨', range:0.18 },
   bloodmage: { name:'血法', icon:'🔥', color:'#d32f2f', skin:'🔥', range:0.25 },
@@ -50,6 +50,7 @@ var DUNGEONS = [
   { name:'Boss挑战', icon:'👹', type:'boss', levels:10 }
 ];
 var dungeonLevels = { gold:1, exp:1, boss:1 };
+var dungeonCompleted = {}; // Track completed dungeons
 var dungeonActive = null, dungeonEnemy = null, dungeonTimer = 0;
 
 // 英雄
@@ -59,13 +60,14 @@ var hero = {
   atk: 25, def: 8, atkTimer: 0,
   crit: 0.1, critDmg: 2.0, promo: 0, buff: 1.0,
   skills: [
-    { name:'小必杀', cd:0, maxCd:5, dmg:3.75, ic:'💫', aoe:0.15, type:'small' },
+    { name:'小必杀', cd:0, maxCd:5, dmg:3.75, ic:'💫', aoe:0.225, type:'small' },
     { name:'治疗', cd:0, maxCd:7, heal:40, ic:'💚', type:'heal' },
-    { name:'大必杀', cd:0, maxCd:20, dmg:4.2, ic:'⚡', aoe:0.35, type:'big' }
+    { name:'大必杀', cd:0, maxCd:20, dmg:4.2, ic:'⚡', aoe:0.525, type:'big' }
   ]
 };
 
-var enemies = [], particles = [];
+var enemies = [], particles = [], effects = [];
+var heroAnim = { bob: 0, frame: 0 };
 
 // 音效
 var audioCtx = null;
@@ -142,6 +144,10 @@ Enemy.prototype.draw = function() {
   // 影子
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath(); ctx.ellipse(x, y+sz*0.85, sz*0.8, sz*0.22, 0, 0, Math.PI*2); ctx.fill();
+  
+  // 敌人浮动动画
+  var bobOffset = Math.sin(Date.now() / 400 + x * 0.1) * 2;
+  y += bobOffset;
   
   // 身体渐变
   var g = ctx.createRadialGradient(x-sz*0.2, y-sz*0.3, sz*0.1, x, y, sz);
@@ -285,6 +291,86 @@ DungeonEnemy.prototype.draw = function() {
   ctx.font = 'bold 16px Arial'; ctx.fillText(Math.ceil(dungeonTimer)+'s', x, y+sz+20);
 };
 
+
+// 特效类
+function Effect(type, x, y, color, duration) {
+  this.type = type; this.x = x; this.y = y; this.color = color;
+  this.life = duration || 30; this.maxLife = this.life;
+  this.radius = 0; this.maxRadius = type === 'big' ? 150 : 80;
+}
+Effect.prototype.update = function() {
+  this.life--;
+  this.radius += (this.maxRadius - this.radius) * 0.15;
+  return this.life > 0;
+};
+Effect.prototype.draw = function() {
+  var alpha = this.life / this.maxLife;
+  var x = this.x, y = this.y, r = this.radius;
+  
+  if (this.type === 'small') {
+    // 小必杀: 扩散圆环
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.6, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.fillStyle = this.color;
+    ctx.beginPath(); ctx.arc(x, y, r * 0.8, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    
+    // 旋转光点
+    for (var i = 0; i < 6; i++) {
+      var angle = (Date.now() / 100 + i * 60) * Math.PI / 180;
+      var px = x + Math.cos(angle) * r * 0.7;
+      var py = y + Math.sin(angle) * r * 0.7;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  } else if (this.type === 'big') {
+    // 大必杀: 闪电+爆炸
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.5;
+    ctx.fillStyle = this.color;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    
+    // 闪电效果
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    for (var i = 0; i < 8; i++) {
+      var angle = i * 45 * Math.PI / 180;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      var segments = 4;
+      var sx = x, sy = y;
+      for (var j = 0; j < segments; j++) {
+        var dist = r / segments * (j + 1);
+        var offset = (Math.random() - 0.5) * 30;
+        sx = x + Math.cos(angle) * dist + Math.cos(angle + Math.PI/2) * offset;
+        sy = y + Math.sin(angle) * dist + Math.sin(angle + Math.PI/2) * offset;
+        ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+    
+    // 冲击波
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.2, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+};
+
 // 粒子
 function Particle(x,y,t,c,s) { this.x=x; this.y=y; this.t=t; this.c=c; this.s=s||14; this.vy=-2; this.a=1; }
 Particle.prototype.update = function() { this.y += this.vy*0.016*60; this.vy += 0.08; this.a -= 0.025; return this.a > 0; };
@@ -342,9 +428,13 @@ function useSkill(idx) {
   if (sk.type === 'heal') {
     hero.hp = Math.min(hero.maxHp, hero.hp + sk.heal);
     addP(hp.x, hp.y-25, '+'+sk.heal, '#4caf50', 14);
+    // 治疗特效
+    effects.push(new Effect('small', hp.x, hp.y, '#4caf50', 20));
   } else if (sk.type === 'small' || sk.type === 'big') {
     var aoe = sk.aoe * Math.min(W,H);
     var hit = 0;
+    // 添加技能特效
+    effects.push(new Effect(sk.type, hp.x, hp.y, sk.type==='big'?'#ffd700':hd.color, sk.type==='big'?40:25));
     if (dungeonEnemy) {
       var dmg = Math.max(1, Math.floor(hero.atk * sk.dmg * hero.buff));
       dungeonEnemy.hp -= dmg;
@@ -360,9 +450,9 @@ function useSkill(idx) {
         }
       }
     }
-    shake = sk.type === 'big' ? 10 : 5;
+    shake = sk.type === 'big' ? 12 : 5;
     playSound('ult');
-    addP(hp.x, hp.y-30, sk.name+'!', hd.color, 20);
+    addP(hp.x, hp.y-30, sk.name+'!', hd.color, 22);
   }
   updateSkUI();
 }
@@ -404,9 +494,12 @@ function showLevelSelect() {
   var maxLvl = dungeonLevels[selectedDungeon.type];
   for (var i = 1; i <= 10; i++) {
     var btn = document.createElement('div');
-    btn.className = 'lvl-btn' + (i > maxLvl ? ' locked' : '');
-    btn.textContent = 'Lv.' + i;
-    if (i <= maxLvl) {
+    var key = selectedDungeon.type + '_' + i;
+    var completed = dungeonCompleted[key];
+    var locked = i > maxLvl;
+    btn.className = 'lvl-btn' + (locked ? ' locked' : '') + (completed ? ' completed' : '');
+    btn.textContent = 'Lv.' + i + (completed ? ' ✓' : '');
+    if (i <= maxLvl && !completed) {
       btn.dataset.lvl = i;
       btn.onclick = function() {
         var lvl = parseInt(this.dataset.lvl);
@@ -437,6 +530,9 @@ function completeDungeon() {
   var stats = getDungeonStats(d, lvl);
   if (stats.reward > 0) { gold += stats.reward; addP(W/2, H/2, '+'+stats.reward+'金!', '#ffd700', 20); }
   gainExp(stats.exp);
+  // Mark this level as completed
+  var key = d.type + '_' + lvl;
+  dungeonCompleted[key] = true;
   if (dungeonLevels[d.type] === lvl && lvl < 10) dungeonLevels[d.type]++;
   dungeonEnemy = null; dungeonActive = null;
   playSound('kill');
@@ -620,7 +716,9 @@ function drawPath(path, col, w) {
 function drawHero() {
   var hp = getHeroPos();
   var hd = getHeroData();
-  var x = hp.x, y = hp.y;
+  // 添加上下浮动动画
+  heroAnim.bob = Math.sin(Date.now() / 300) * 3;
+  var x = hp.x, y = hp.y + heroAnim.bob;
   var sz = 28; // 英雄大小
   
   // 攻击范围
@@ -749,6 +847,15 @@ function drawHero() {
     ctx.fillText('🔮', x+sz*0.8, y-sz*0.3);
   }
   
+  // 类型标签
+  var typeLabel = hd.type === 'str' ? '力量' : (hd.type === 'agi' ? '敏捷' : '智力');
+  var typeColor = hd.type === 'str' ? '#ff1744' : (hd.type === 'agi' ? '#2979ff' : '#ffd600');
+  ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+  ctx.fillStyle = typeColor;
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+  ctx.strokeText('[' + typeLabel + ']', x, y-sz-28);
+  ctx.fillText('[' + typeLabel + ']', x, y-sz-28);
+  
   // 名字
   ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
   ctx.fillStyle = hd.color;
@@ -790,6 +897,7 @@ function update() {
     }
   }
   for (var i = particles.length-1; i >= 0; i--) if (!particles[i].update()) particles.splice(i, 1);
+  for (var i = effects.length-1; i >= 0; i--) if (!effects[i].update()) effects.splice(i, 1);
   if (dungeonActive) { dungeonTimer -= 0.016; if (dungeonTimer <= 0) failDungeon(); }
   waveT -= 0.016;
   if (waveT <= 0) { wave++; waveT = C.WAVE_CD + wave; spawnWave(); }
@@ -805,6 +913,7 @@ function draw() {
   if (dungeonEnemy) dungeonEnemy.draw();
   drawHero();
   for (var i = 0; i < particles.length; i++) particles[i].draw();
+  for (var i = 0; i < effects.length; i++) effects[i].draw();
   ctx.restore();
 }
 function loop() { update(); draw(); requestAnimationFrame(loop); }
