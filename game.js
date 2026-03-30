@@ -522,8 +522,21 @@ function useSkill(idx) {
     // 添加技能特效
     effects.push(new Effect(sk.type, hp.x, hp.y, sk.type==='big'?'#ffd700':hd.color, sk.type==='big'?40:25));
     // 添加持续效果(2秒)
-    var lastingDmg = Math.floor(hero.atk * sk.dmg * hero.buff * 0.15); // 每tick伤害
+    var lastingDmg = Math.floor(hero.atk * sk.dmg * hero.buff * 0.15);
     lastingEffects.push(new LastingEffect(sk.type, hp.x, hp.y, aoe, lastingDmg, 120));
+    // 根据技能类型添加额外特效
+    if (sk.type === 'small') {
+      // 小必杀: 根据技能图标添加特效
+      for (var j = 0; j < 6; j++) {
+        var angle = j * 60 * Math.PI / 180;
+        addP(hp.x + Math.cos(angle)*aoe*0.5, hp.y + Math.sin(angle)*aoe*0.5, sk.ic, hd.color, 16);
+      }
+    } else {
+      // 大必杀: 全屏特效
+      for (var j = 0; j < 10; j++) {
+        addP(hp.x + (Math.random()-0.5)*aoe, hp.y + (Math.random()-0.5)*aoe, sk.ic, '#ffd700', 18);
+      }
+    }
     if (dungeonEnemy) {
       var dmg = Math.max(1, Math.floor(hero.atk * sk.dmg * hero.buff));
       dungeonEnemy.hp -= dmg;
@@ -691,6 +704,7 @@ function doPromo(auto, key) {
   hero.maxHp = Math.floor(hero.maxHp*b); hero.hp = hero.maxHp;
   hero.maxMp = Math.floor(hero.maxMp*b); hero.mp = hero.maxMp;
   hero.promo++;
+  updateSkills(); // 更新技能名称
   document.getElementById('promo-modal').classList.remove('show');
   state = 'playing';
   var hp = getHeroPos();
@@ -1075,7 +1089,7 @@ function setupEvents() {
     }
   });
 
-  document.getElementById('btn-lvl').addEventListener('click', showLevelSelect);
+  document.getElementById('btn-dvl').addEventListener('click', showLevelSelect);
   document.getElementById('btn-close-dungeon').addEventListener('click', function() {
     document.getElementById('dungeon-modal').classList.remove('show'); state = 'playing';
   });
