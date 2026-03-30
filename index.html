@@ -7,55 +7,52 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none}
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:'Microsoft YaHei',Arial,sans-serif}
-#app{position:relative;width:100%;height:100%;max-width:500px;margin:0 auto}
-canvas{width:100%;height:100%;display:block}
+#app{position:relative;width:100%;height:100%;max-width:500px;margin:0 auto;background:#0d1b0d}
+canvas{position:absolute;top:0;left:0;width:100%!important;height:100%!important;display:block}
 #ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
 #ui>*{pointer-events:auto}
-.top{position:absolute;top:0;left:0;width:100%;padding:6px 10px;background:linear-gradient(180deg,rgba(0,0,0,.9),rgba(0,0,0,.5));display:flex;justify-content:space-between;border-bottom:2px solid #4a90d9;z-index:20}
+.top{position:absolute;top:0;left:0;width:100%;padding:8px 10px;background:linear-gradient(180deg,rgba(0,0,0,.92),rgba(0,0,0,.6));display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #4a90d9;z-index:20}
 .top .item{color:#fff;font-size:11px;display:flex;align-items:center;gap:3px}
 .top .val{color:#ffd700;font-weight:bold}
-.bot{position:absolute;bottom:0;left:0;width:100%;padding:8px;background:linear-gradient(0deg,rgba(0,0,0,.95),rgba(0,0,0,.6));display:flex;justify-content:center;gap:8px;border-top:2px solid #4a90d9;z-index:20}
-.sk{width:65px;height:65px;border-radius:12px;border:2px solid #555;background:#222;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
-.sk.on{border-color:#4a90d9;background:#1a3a5a;box-shadow:0 0 8px rgba(74,144,217,.4)}
-.sk.off{opacity:.5}
-.sk .ic{font-size:22px}.sk .nm{font-size:8px;margin-top:2px}
-.sk .cd{position:absolute;inset:0;background:rgba(0,0,0,.7);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold}
-.side{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:4px;z-index:15}
-.hero-info{background:rgba(0,0,0,.85);border:2px solid #4a90d9;border-radius:10px;padding:8px;width:70px;text-align:center}
-.hero-info .skin{font-size:28px}.hero-info .class-name{font-size:10px;color:#ffd700;margin:3px 0}
-.hero-info .lv{font-size:10px;color:#fff}
-.bar{height:4px;background:#333;border-radius:2px;margin:2px 0;overflow:hidden}.bar .fill{height:100%;border-radius:2px}
+.bot{position:absolute;bottom:0;left:0;width:100%;padding:10px 8px;background:linear-gradient(0deg,rgba(0,0,0,.95),rgba(0,0,0,.7));display:flex;justify-content:center;gap:10px;border-top:2px solid #4a90d9;z-index:20}
+.sk{width:68px;height:68px;border-radius:12px;border:3px solid #555;background:linear-gradient(180deg,#2a2a2a,#1a1a1a);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .2s}
+.sk.on{border-color:#4a90d9;background:linear-gradient(180deg,#2a4a7a,#1a2a4a);box-shadow:0 0 12px rgba(74,144,217,.5)}
+.sk.off{opacity:.4;border-color:#333}
+.sk .ic{font-size:24px;line-height:1}.sk .nm{font-size:9px;margin-top:3px;opacity:.9}
+.sk .cd{position:absolute;inset:0;background:rgba(0,0,0,.75);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:bold;color:#fff}
+.side{position:absolute;right:8px;top:55%;transform:translateY(-50%);z-index:15}
+.hero-info{background:rgba(0,0,0,.85);border:2px solid #4a90d9;border-radius:12px;padding:10px 8px;width:72px;text-align:center;box-shadow:0 4px 15px rgba(0,0,0,.5)}
+.hero-info .skin{font-size:32px;line-height:1}.hero-info .class-name{font-size:11px;color:#ffd700;margin:4px 0;font-weight:bold}
+.hero-info .lv{font-size:10px;color:#ccc;margin-bottom:4px}
+.bar{height:5px;background:#222;border-radius:3px;margin:3px 0;overflow:hidden}.bar .fill{height:100%;border-radius:3px;transition:width .3s}
 .hp-fill{background:linear-gradient(90deg,#4caf50,#8bc34a)}.mp-fill{background:linear-gradient(90deg,#2196f3,#64b5f6)}.exp-fill{background:linear-gradient(90deg,#ff9800,#ffc107)}
-.promo-modal,.dungeon-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:100;flex-direction:column}
-.promo-modal.show,.dungeon-modal.show{display:flex}
-.promo-modal h3,.dungeon-modal h3{color:#ffd700;font-size:20px;margin-bottom:15px}
-.promo-cards{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:10px}
-.promo-card{width:110px;padding:10px;background:linear-gradient(180deg,#2a2a4a,#1a1a3a);border:3px solid #666;border-radius:10px;cursor:pointer;text-align:center;transition:.3s}
-.promo-card:hover{transform:scale(1.05)}.promo-card.auto{border-color:#ff9800;animation:glow 1.5s infinite}
-.promo-card .icon{font-size:32px}.promo-card .name{font-size:12px;font-weight:bold;color:#fff;margin:4px 0}.promo-card .bonus{font-size:9px;color:#4caf50}.promo-card .desc{font-size:8px;color:#aaa;margin-top:3px}
-@keyframes glow{0%,100%{box-shadow:0 0 8px rgba(255,152,0,.4)}50%{box-shadow:0 0 20px rgba(255,152,0,.7)}}
-.wave-announce{position:absolute;top:25%;left:50%;transform:translate(-50%,-50%);font-size:28px;font-weight:bold;text-shadow:3px 3px 6px #000;display:none;pointer-events:none;z-index:50;text-align:center}
-.wave-announce.boss{color:#ff4444;font-size:36px}
-.gameover{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:200;flex-direction:column;background:rgba(0,0,0,.9)}
-.gameover.show{display:flex}.gameover h2{color:#ff4444;font-size:32px}.gameover .stats{color:#fff;font-size:16px;margin:15px 0}.gameover .reason{color:#ff9800;font-size:14px;margin-bottom:15px}
-.gameover button{padding:12px 35px;font-size:16px;background:linear-gradient(180deg,#4a90d9,#2a6099);border:2px solid #6ab0f9;border-radius:20px;color:#fff;cursor:pointer;font-weight:bold}
-.toast{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#ffd700;font-size:22px;font-weight:bold;text-shadow:2px 2px 4px #000;display:none;pointer-events:none;z-index:60}
-.mid-info{position:absolute;bottom:85px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:15}
-.mid-btn{padding:8px 16px;background:rgba(0,0,0,.7);border:2px solid #555;border-radius:15px;color:#fff;font-size:11px;cursor:pointer}
-.mid-btn:hover{border-color:#ffd700}
-.move-cd{position:absolute;bottom:140px;left:50%;transform:translateX(-50%);color:#ff9800;font-size:12px;font-weight:bold;z-index:15}
-.dungeon-list{display:flex;flex-direction:column;gap:8px;padding:10px;max-width:320px;width:100%}
-.dungeon-card{padding:10px;background:linear-gradient(180deg,#2a2a4a,#1a1a3a);border:2px solid #666;border-radius:10px;cursor:pointer;text-align:center;transition:.3s}
-.dungeon-card:hover{border-color:#ffd700}.dungeon-card.locked{opacity:.5;cursor:not-allowed}
-.dungeon-card .icon{font-size:24px}.dungeon-card .name{font-size:13px;font-weight:bold;color:#fff}.dungeon-card .level{font-size:10px;color:#4fc3f7;margin:2px 0}
-.dungeon-card .desc{font-size:9px;color:#aaa}.dungeon-card .time{font-size:9px;color:#ff9800}.dungeon-card .unlock{font-size:9px;color:#f44336}
-.dungeon-modal .btns{display:flex;gap:10px;margin-top:12px}
-.dungeon-modal .btns button{padding:10px 20px;background:#333;border:2px solid #555;border-radius:12px;color:#fff;cursor:pointer;font-size:12px}
-.dungeon-modal .btns button:hover{border-color:#ffd700}
-.level-panel{display:none;margin-top:10px;max-width:300px}
-.level-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:10px}
-.level-btn{padding:8px;background:#2a2a4a;border:2px solid #555;border-radius:8px;color:#fff;text-align:center;cursor:pointer;font-size:11px}
-.level-btn:hover{border-color:#ffd700}.level-btn.locked{opacity:.4;cursor:not-allowed}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.93);display:none;align-items:center;justify-content:center;z-index:100;flex-direction:column}
+.modal.show{display:flex}
+.modal h3{color:#ffd700;font-size:22px;margin-bottom:18px;text-shadow:2px 2px 4px #000}
+.cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:10px}
+.card{width:115px;padding:12px;background:linear-gradient(180deg,#2a2a4a,#1a1a3a);border:3px solid #666;border-radius:12px;cursor:pointer;text-align:center;transition:.3s}
+.card:hover{transform:scale(1.05)}.card.auto{border-color:#ff9800;animation:glow 1.5s infinite}
+.card .icon{font-size:36px}.card .name{font-size:13px;font-weight:bold;color:#fff;margin:5px 0}.card .bonus{font-size:10px;color:#4caf50}.card .desc{font-size:9px;color:#aaa;margin-top:3px}
+.card .level{font-size:10px;color:#4fc3f7;margin:3px 0}.card .time{font-size:9px;color:#ff9800}.card .unlock{font-size:9px;color:#f44336}
+@keyframes glow{0%,100%{box-shadow:0 0 8px rgba(255,152,0,.5)}50%{box-shadow:0 0 25px rgba(255,152,0,.8)}}
+.wave-ann{position:absolute;top:28%;left:50%;transform:translate(-50%,-50%);font-size:30px;font-weight:bold;text-shadow:3px 3px 6px #000;display:none;pointer-events:none;z-index:50;text-align:center;color:#ff6f00}
+.wave-ann.boss{color:#ff4444;font-size:38px}
+.gameover{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:200;flex-direction:column;background:rgba(0,0,0,.92)}
+.gameover.show{display:flex}.gameover h2{color:#ff4444;font-size:36px;text-shadow:3px 3px 6px #000;margin-bottom:10px}
+.gameover .stats{color:#fff;font-size:18px;margin:10px 0}.gameover .reason{color:#ff9800;font-size:14px;margin-bottom:20px}
+.gameover button{padding:14px 40px;font-size:18px;background:linear-gradient(180deg,#4a90d9,#2a6099);border:3px solid #6ab0f9;border-radius:25px;color:#fff;cursor:pointer;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,.5)}
+.toast{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#ffd700;font-size:24px;font-weight:bold;text-shadow:2px 2px 4px #000;display:none;pointer-events:none;z-index:60;white-space:nowrap}
+.mid{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:15}
+.mid-btn{padding:8px 16px;background:rgba(0,0,0,.8);border:2px solid #555;border-radius:18px;color:#fff;font-size:12px;cursor:pointer;transition:all .2s}
+.mid-btn:hover{border-color:#ffd700;box-shadow:0 0 10px rgba(255,215,0,.3)}
+.move-cd{position:absolute;bottom:145px;left:50%;transform:translateX(-50%);color:#ff9800;font-size:13px;font-weight:bold;z-index:15;text-shadow:1px 1px 2px #000}
+.lvl-panel{display:none;margin-top:12px}
+.lvl-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;max-width:300px}
+.lvl-btn{padding:10px;background:#2a2a4a;border:2px solid #555;border-radius:8px;color:#fff;text-align:center;cursor:pointer;font-size:12px;font-weight:bold}
+.lvl-btn:hover{border-color:#ffd700;background:#3a3a5a}.lvl-btn.locked{opacity:.35;cursor:not-allowed}
+.btns{display:flex;gap:12px;margin-top:15px}
+.btns button{padding:10px 22px;background:#2a2a4a;border:2px solid #555;border-radius:12px;color:#fff;cursor:pointer;font-size:12px}
+.btns button:hover{border-color:#ffd700}
 </style>
 </head>
 <body>
@@ -63,11 +60,11 @@ canvas{width:100%;height:100%;display:block}
   <canvas id="game"></canvas>
   <div id="ui">
     <div class="top">
-      <div class="item">⭐ Lv.<span class="val" id="lv">1</span></div>
-      <div class="item">💰 <span class="val" id="gold">0</span></div>
-      <div class="item">🌊 W<span class="val" id="wave">1</span></div>
-      <div class="item">💀 <span class="val" id="kills">0</span></div>
-      <div class="item">👹 <span class="val" id="enemies">0</span>/100</div>
+      <div class="item">⭐Lv.<span class="val" id="lv">1</span></div>
+      <div class="item">💰<span class="val" id="gold">0</span></div>
+      <div class="item">🌊W<span class="val" id="wave">1</span></div>
+      <div class="item">💀<span class="val" id="kills">0</span></div>
+      <div class="item">👹<span class="val" id="enemies">0</span>/100</div>
     </div>
     <div class="side">
       <div class="hero-info">
@@ -80,15 +77,13 @@ canvas{width:100%;height:100%;display:block}
       </div>
     </div>
     <div class="move-cd" id="move-cd"></div>
-    <div class="mid-info">
-      <div class="mid-btn" id="btn-dungeon">⚔️ 副本</div>
-    </div>
+    <div class="mid"><div class="mid-btn" id="btn-dungeon">⚔️ 副本</div></div>
     <div class="bot">
       <div class="sk on" data-skill="0"><span class="ic">💫</span><span class="nm">小必杀</span></div>
       <div class="sk on" data-skill="1"><span class="ic">💚</span><span class="nm">治疗</span></div>
       <div class="sk on" data-skill="2"><span class="ic">⚡</span><span class="nm">大必杀</span></div>
     </div>
-    <div class="wave-announce" id="wave-ann"></div>
+    <div class="wave-ann" id="wave-ann"></div>
     <div class="toast" id="toast"></div>
     <div class="gameover" id="gameover">
       <h2>GAME OVER</h2>
@@ -97,21 +92,23 @@ canvas{width:100%;height:100%;display:block}
       <button onclick="location.reload()">再来一局</button>
     </div>
   </div>
-  <div class="promo-modal" id="promo-modal">
-    <h3>选择转职方式</h3>
-    <div class="promo-cards" id="promo-cards"></div>
-    <div style="color:#aaa;font-size:10px;margin-top:12px;text-align:center;padding:0 15px">🎲 自动+20% | ✋ 手动+10%</div>
+  
+  <div class="modal" id="promo-modal">
+    <h3>✨ 选择转职</h3>
+    <div class="cards" id="promo-cards"></div>
+    <div style="color:#888;font-size:11px;margin-top:15px">🎲自动+20%属性 | ✋手动+10%属性</div>
   </div>
-  <div class="dungeon-modal" id="dungeon-modal">
-    <h3>⚔️ 选择副本</h3>
-    <div class="dungeon-list" id="dungeon-list"></div>
-    <div class="level-panel" id="dungeon-level-select">
-      <div style="color:#aaa;font-size:11px;margin-bottom:5px;text-align:center">选择难度等级</div>
-      <div class="level-grid" id="level-grid"></div>
+  
+  <div class="modal" id="dungeon-modal">
+    <h3>⚔️ 副本挑战</h3>
+    <div class="cards" id="dungeon-list"></div>
+    <div class="lvl-panel" id="lvl-panel">
+      <div style="color:#aaa;font-size:12px;text-align:center;margin-bottom:8px">选择难度等级</div>
+      <div class="lvl-grid" id="lvl-grid"></div>
     </div>
     <div class="btns">
-      <button id="dungeon-confirm">选择等级</button>
-      <button id="dungeon-close">关闭</button>
+      <button id="btn-lvl">选择等级</button>
+      <button id="btn-close-dungeon">关闭</button>
     </div>
   </div>
 </div>

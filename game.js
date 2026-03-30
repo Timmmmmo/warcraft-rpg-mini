@@ -584,7 +584,7 @@ function draw(){
 function loop(){update();draw();requestAnimationFrame(loop);}
 
 function init(){
-  canvas=document.getElementById('game');ctx=canvas.getContext('2d');canvas.width=C.W;canvas.height=C.H;
+  canvas=document.getElementById("game");ctx=canvas.getContext("2d");canvas.width=C.W;canvas.height=C.H;ctx.imageSmoothingEnabled=false;
   initAudio();requestAnimationFrame(loop);setupEvents();
   // 点击页面初始化音频
   document.addEventListener('click',initAudio,{once:true});
