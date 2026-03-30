@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>WarCraft RPG</title>
+<title>WarCraft RPG - Enhanced</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none}
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a}
@@ -21,6 +21,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a}
 #joystick-knob{position:absolute;width:55px;height:55px;background:linear-gradient(180deg,#4a90d9,#2a6099);border-radius:50%;top:42px;left:42px;box-shadow:0 4px 10px rgba(0,0,0,0.4)}
 #msg{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#ffd700;font-size:28px;font-weight:bold;text-shadow:3px 3px 6px #000;display:none;text-align:center;pointer-events:none;z-index:200}
 .wave-alert{position:absolute;top:25%;left:50%;transform:translate(-50%,-50%);color:#ff6f00;font-size:36px;font-weight:bold;text-shadow:3px 3px 6px #000;display:none;pointer-events:none;z-index:200}
+/* 转职弹窗 */
+#class-select{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:none;align-items:center;justify-content:center;z-index:300;flex-direction:column}
+#class-select.show{display:flex}
+.class-title{color:#ffd700;font-size:32px;font-weight:bold;margin-bottom:30px;text-shadow:2px 2px 4px #000}
+.class-cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;padding:20px}
+.class-card{width:140px;padding:20px;background:linear-gradient(180deg,#2a2a4a,#1a1a3a);border:3px solid #666;border-radius:15px;cursor:pointer;text-align:center;transition:all 0.3s}
+.class-card:hover{transform:scale(1.05);box-shadow:0 0 20px rgba(255,215,0,0.5)}
+.class-card.blademaster{border-color:#4a90d9}
+.class-card.blademaster:hover{box-shadow:0 0 20px rgba(74,144,217,0.8)}
+.class-card.mountainking{border-color:#ffd700}
+.class-card.mountainking:hover{box-shadow:0 0 20px rgba(255,215,0,0.8)}
+.class-card.bloodmage{border-color:#ff4444}
+.class-card.bloodmage:hover{box-shadow:0 0 20px rgba(255,68,68,0.8)}
+.class-card .icon{font-size:48px;margin-bottom:10px}
+.class-card .name{font-size:16px;font-weight:bold;color:#fff;margin-bottom:8px}
+.class-card .desc{font-size:11px;color:#aaa;line-height:1.4}
+/* 转职按钮 */
+#class-btn{position:absolute;bottom:100px;left:50%;transform:translateX(-50%);padding:12px 24px;background:linear-gradient(180deg,#ffd700,#ff8c00);border:3px solid #fff;border-radius:25px;color:#000;font-size:16px;font-weight:bold;cursor:pointer;display:none;box-shadow:0 0 20px rgba(255,215,0,0.6);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.6)}50%{box-shadow:0 0 35px rgba(255,215,0,0.9)}}
+/* 职业显示 */
+#class-display{position:absolute;top:10px;left:50%;transform:translateX(-50%);padding:5px 15px;background:rgba(0,0,0,0.8);border-radius:20px;color:#ffd700;font-size:14px;font-weight:bold;display:none}
+/* 自动攻击指示器 */
+.auto-atk-indicator{position:absolute;bottom:100px;left:30px;padding:8px 12px;background:rgba(0,200,0,0.3);border:2px solid #4caf50;border-radius:8px;color:#4caf50;font-size:12px;font-weight:bold}
 </style>
 </head>
 <body>
@@ -37,14 +60,38 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a}
     <div style="font-size:12px;margin-top:5px;color:#aaa">Next: <span id="nextwave" style="color:#fff;font-weight:bold">30</span>s</div>
     <div style="font-size:12px;margin-top:3px">Kills: <span id="kills" style="color:#4caf50">0</span></div>
   </div>
+  <div id="class-display">战士</div>
   <div id="joystick" style="bottom:180px;left:30px"><div id="joystick-knob"></div></div>
-  <div class="skill-btn ready" style="bottom:25px;right:25px" data-skill="0"><span class="key">Q</span><span class="name">Attack</span></div>
-  <div class="skill-btn ready" style="bottom:25px;right:100px" data-skill="1"><span class="key">W</span><span class="name">Spin</span></div>
-  <div class="skill-btn ready" style="bottom:25px;right:175px" data-skill="2"><span class="key">E</span><span class="name">Heal</span></div>
-  <div class="skill-btn ready" style="bottom:25px;right:250px" data-skill="3"><span class="key">R</span><span class="name">Ulti</span></div>
-  <div style="position:absolute;bottom:100px;right:25px;width:55px;height:55px;background:linear-gradient(180deg,#4a90d9,#2a6099);border:3px solid #6ab0f9;border-radius:50%;color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,0.5)" id="btn-attack">⚔</div>
+  <div class="skill-btn ready" style="bottom:25px;right:25px" data-skill="0"><span class="key">Q</span><span class="name" id="skill-q">Attack</span></div>
+  <div class="skill-btn ready" style="bottom:25px;right:100px" data-skill="1"><span class="key">W</span><span class="name" id="skill-w">Spin</span></div>
+  <div class="skill-btn ready" style="bottom:25px;right:175px" data-skill="2"><span class="key">E</span><span class="name" id="skill-e">Heal</span></div>
+  <div class="skill-btn ready" style="bottom:25px;right:250px" data-skill="3"><span class="key">R</span><span class="name" id="skill-r">Ulti</span></div>
+  <div class="auto-atk-indicator">⚔ AUTO</div>
+  <button id="class-btn">⚔ 转职 (Lv.5)</button>
   <div id="msg"></div>
   <div class="wave-alert" id="wave-alert">WAVE <span id="wave-num">1</span></div>
+</div>
+
+<!-- 转职选择弹窗 -->
+<div id="class-select">
+  <div class="class-title">选择你的职业</div>
+  <div class="class-cards">
+    <div class="class-card blademaster" data-class="blademaster">
+      <div class="icon">⚔️</div>
+      <div class="name">剑圣</div>
+      <div class="desc">高攻速高暴击<br>剑气斩击<br>大招:剑刃风暴</div>
+    </div>
+    <div class="class-card mountainking" data-class="mountainking">
+      <div class="icon">🛡️</div>
+      <div class="name">山丘之王</div>
+      <div class="desc">高防御高生命<br>雷霆一击<br>大招:天神下凡</div>
+    </div>
+    <div class="class-card bloodmage" data-class="bloodmage">
+      <div class="icon">🔥</div>
+      <div class="name">血法师</div>
+      <div class="desc">法术伤害<br>烈焰灼烧<br>大招:烈焰风暴</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -67,91 +114,148 @@ var waveTimer=30;
 var kills=0;
 var screenShake=0;
 
+// ====== 路线系统 ======
+var PATHS=[
+  // 路线1: 左上Z字形
+  [{x:30,y:30},{x:120,y:80},{x:80,y:150},{x:160,y:200},{x:120,y:280},{x:200,y:320},{x:180,y:400},{x:GAME_W/2,y:GAME_H/2}],
+  // 路线2: 右上环形
+  [{x:GAME_W-30,y:30},{x:GAME_W-100,y:100},{x:GAME_W-60,y:180},{x:GAME_W-120,y:250},{x:GAME_W-80,y:330},{x:GAME_W/2+50,y:400},{x:GAME_W/2,y:GAME_H/2}],
+  // 路线3: 下方直线+弯曲
+  [{x:GAME_W/2,y:GAME_H-30},{x:GAME_W/2,y:GAME_H-100},{x:GAME_W/2-60,y:GAME_H-160},{x:GAME_W/2+40,y:GAME_H-220},{x:GAME_W/2-30,y:GAME_H-280},{x:GAME_W/2,y:GAME_H/2}]
+];
+
+// ====== 转职系统 ======
+var CLASSES={
+  warrior:{name:'战士',color:'#4a90d9',atkSpd:0.8,ultName:'Ulti'},
+  blademaster:{name:'剑圣',color:'#66ccff',atkSpd:0.5,ultName:'剑刃风暴'},
+  mountainking:{name:'山丘之王',color:'#ffd700',atkSpd:1.0,ultName:'天神下凡'},
+  bloodmage:{name:'血法师',color:'#ff4444',atkSpd:0.7,ultName:'烈焰风暴'}
+};
+
+var heroClass='warrior';
+var heroUltLevel=1; // 大招等级
+
+// ====== 玩家 ======
+var player={
+  x:GAME_W/2,y:GAME_H/2,vx:0,vy:0,
+  hp:150,maxHp:150,mp:80,maxMp:80,
+  level:1,exp:0,expNeed:100,
+  atk:18,def:8,speed:4.5,facing:1,
+  critRate:0.1,critDmg:2.0,
+  isGodMode:false,godModeTimer:0,
+  skills:[
+    {name:'Attack',cd:0,maxCd:0.5,dmg:1.0},
+    {name:'Spin',cd:0,maxCd:4,dmg:2.5},
+    {name:'Heal',cd:0,maxCd:10,heal:50},
+    {name:'Ultimate',cd:0,maxCd:25,dmg:6}
+  ],
+  atkRange:180,spinRange:120,
+  autoAtkTimer:0,autoAtkCd:0.8
+};
+
+var enemies=[];
+var projectiles=[];
+var particles=[];
+var damageZones=[]; // 持续伤害区域
+
 var keys={};
 var joystick={active:false,x:0,y:0,dx:0,dy:0};
 var joystickEl=document.getElementById('joystick');
 var joystickKnob=document.getElementById('joystick-knob');
 var joystickCenter={x:0,y:0};
 
-var player={
-  x:GAME_W/2,y:GAME_H/2,vx:0,vy:0,
-  hp:100,maxHp:100,mp:50,maxMp:50,
-  level:1,exp:0,expNeed:100,
-  atk:15,def:5,speed:4,facing:1,
-  skills:[
-    {name:'Attack',cd:0,maxCd:0.5,dmg:1.0},
-    {name:'Spin',cd:0,maxCd:4,dmg:2.5},
-    {name:'Heal',cd:0,maxCd:10,heal:40},
-    {name:'Ultimate',cd:0,maxCd:25,dmg:6}
-  ],
-  atkRange:150,spinRange:100
-};
-
-var enemies=[];
-var projectiles=[];
-var particles=[];
-var spawnPoints=[];
-
-function initSpawnPoints(){
-  var margin=50;
-  spawnPoints=[
-    {x:margin,y:margin},{x:GAME_W-margin,y:margin},
-    {x:margin,y:GAME_H-margin},{x:GAME_W-margin,y:GAME_H-margin}
-  ];
-}
-initSpawnPoints();
-
-function Enemy(x,y,type){
+// ====== 敌人类 - 路径移动 ======
+function Enemy(x,y,type,pathIdx){
   this.x=x;this.y=y;this.type=type||'goblin';
+  this.pathIdx=pathIdx||0;
+  this.pathProgress=0; // 当前路径进度
+  this.pathWaypoint=0; // 当前waypoint索引
+  
   var isBoss=type==='boss';
-  this.hp=isBoss?600+wave*150:40+wave*12;
+  var isFast=type==='fast';
+  
+  this.hp=isBoss?800+wave*180:(isFast?30+wave*10:50+wave*15);
   this.maxHp=this.hp;
-  this.atk=isBoss?35:6+wave*2;
-  this.def=isBoss?15:2+wave;
-  this.speed=isBoss?1.2:1.8+wave*0.08;
-  this.exp=isBoss?400:20+wave*6;
-  this.size=isBoss?40:20;
-  this.color=isBoss?'#ffd600':type==='orc'?'#ff7043':type==='skeleton'?'#ab47bc':'#66bb6a';
+  this.atk=isBoss?40:8+wave*2.5;
+  this.def=isBoss?20:3+wave;
+  this.speed=isBoss?1.0:(isFast?2.5:1.5+wave*0.06);
+  this.exp=isBoss?500:25+wave*8;
+  this.size=isBoss?45:(isFast?15:22);
+  this.color=isBoss?'#ffd600':type==='orc'?'#ff7043':type==='skeleton'?'#ab47bc':isFast?'#00bcd4':'#66bb6a';
   this.atkTimer=0;
+  this.reachedEnd=false;
 }
 
 Enemy.prototype.update=function(){
+  var path=PATHS[this.pathIdx%PATHS.length];
+  
+  if(this.pathWaypoint<path.length){
+    var target=path[this.pathWaypoint];
+    var dx=target.x-this.x;
+    var dy=target.y-this.y;
+    var dist=Math.sqrt(dx*dx+dy*dy);
+    
+    if(dist<this.speed+2){
+      this.pathWaypoint++;
+    }else{
+      this.x+=(dx/dist)*this.speed;
+      this.y+=(dy/dist)*this.speed;
+    }
+  }else{
+    // 到达终点，对玩家造成伤害或消失
+    this.reachedEnd=true;
+    player.hp-=5;
+    addParticle(player.x,player.y-20,'-5','#ff5252',13);
+    return false; // 移除敌人
+  }
+  
+  // 检测与玩家碰撞攻击
   var dx=player.x-this.x;
   var dy=player.y-this.y;
   var dist=Math.sqrt(dx*dx+dy*dy);
-  if(dist>this.size+12){
-    this.x+=(dx/dist)*this.speed;
-    this.y+=(dy/dist)*this.speed;
-  }else{
+  
+  if(dist<this.size+12){
     this.atkTimer++;
-    if(this.atkTimer>=40){
+    if(this.atkTimer>=50){
       this.atkTimer=0;
-      var dmg=Math.max(1,this.atk-player.def);
-      player.hp-=dmg;
-      addParticle(player.x,player.y-20,'-'+dmg,'#ff5252',13);
-      screenShake=3;
-      if(player.hp<=0)gameOver();
+      if(!player.isGodMode){
+        var dmg=Math.max(1,this.atk-player.def);
+        player.hp-=dmg;
+        addParticle(player.x,player.y-20,'-'+dmg,'#ff5252',13);
+        screenShake=3;
+        if(player.hp<=0)gameOver();
+      }
     }
   }
+  
   this.x=Math.max(this.size,Math.min(GAME_W-this.size,this.x));
   this.y=Math.max(this.size,Math.min(GAME_H-this.size,this.y));
+  return true;
 };
 
 Enemy.prototype.draw=function(){
   var sx=GAME_X+this.x;
   var sy=GAME_Y+this.y;
+  
+  // 影子
   ctx.fillStyle='rgba(0,0,0,0.3)';
   ctx.beginPath();
   ctx.ellipse(sx,sy+this.size*0.8,this.size*0.8,this.size*0.25,0,0,Math.PI*2);
   ctx.fill();
+  
+  // 身体
   ctx.fillStyle=this.color;
   ctx.beginPath();
   ctx.arc(sx,sy,this.size,0,Math.PI*2);
   ctx.fill();
-  ctx.fillStyle='rgba(0,0,0,0.2)';
+  
+  // 高光
+  ctx.fillStyle='rgba(255,255,255,0.2)';
   ctx.beginPath();
   ctx.arc(sx-this.size*0.3,sy-this.size*0.3,this.size*0.35,0,Math.PI*2);
   ctx.fill();
+  
+  // 眼睛
   ctx.fillStyle='#fff';
   ctx.beginPath();
   ctx.arc(sx-this.size*0.35,sy-this.size*0.1,this.size*0.22,0,Math.PI*2);
@@ -162,6 +266,8 @@ Enemy.prototype.draw=function(){
   ctx.arc(sx-this.size*0.35,sy-this.size*0.1,this.size*0.1,0,Math.PI*2);
   ctx.arc(sx+this.size*0.35,sy-this.size*0.1,this.size*0.1,0,Math.PI*2);
   ctx.fill();
+  
+  // 血条
   if(this.hp<this.maxHp){
     var barW=this.size*2;
     ctx.fillStyle='#333';
@@ -171,11 +277,13 @@ Enemy.prototype.draw=function(){
   }
 };
 
-function Projectile(x,y,tx,ty,dmg,type){
+// ====== 投射物 ======
+function Projectile(x,y,tx,ty,dmg,type,color){
   this.x=x;this.y=y;
   var dx=tx-x,dy=ty-y,dist=Math.sqrt(dx*dx+dy*dy);
-  this.vx=(dx/dist)*9;this.vy=(dy/dist)*9;
-  this.dmg=dmg;this.type=type||'arrow';this.life=35;
+  this.vx=(dx/dist)*10;this.vy=(dy/dist)*10;
+  this.dmg=dmg;this.type=type||'arrow';this.life=40;
+  this.color=color||'#4fc3f7';
 }
 
 Projectile.prototype.update=function(){
@@ -183,10 +291,14 @@ Projectile.prototype.update=function(){
   for(var i=0;i<enemies.length;i++){
     var e=enemies[i];
     var dist=Math.sqrt((this.x-e.x)**2+(this.y-e.y)**2);
-    if(dist<e.size+6){
+    if(dist<e.size+8){
       var dmg=Math.max(1,this.dmg-e.def);
+      // 暴击检测
+      var isCrit=Math.random()<player.critRate;
+      if(isCrit)dmg=Math.floor(dmg*player.critDmg);
+      
       e.hp-=dmg;
-      addParticle(e.x,e.y-18,'-'+dmg,this.type==='ulti'?'#ffd700':'#ff6f00',14);
+      addParticle(e.x,e.y-18,'-'+dmg+(isCrit?'!':''),isCrit?'#ffd700':this.color,isCrit?18:14);
       if(e.hp<=0){killEnemy(e,i);i--;}
       return false;
     }
@@ -199,17 +311,13 @@ Projectile.prototype.draw=function(){
   ctx.save();
   ctx.translate(sx,sy);
   ctx.rotate(Math.atan2(this.vy,this.vx));
-  if(this.type==='ulti'){
-    ctx.fillStyle='#ffd700';
-    ctx.shadowColor='#ff6f00';ctx.shadowBlur=8;
-    ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(-8,6);ctx.lineTo(-8,-6);ctx.fill();
-  }else{
-    ctx.fillStyle='#4fc3f7';
-    ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(-6,3);ctx.lineTo(-6,-3);ctx.fill();
-  }
+  ctx.fillStyle=this.color;
+  ctx.shadowColor=this.color;ctx.shadowBlur=6;
+  ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(-6,4);ctx.lineTo(-6,-4);ctx.fill();
   ctx.restore();
 };
 
+// ====== 粒子效果 ======
 function Particle(x,y,text,color,size){
   this.x=x;this.y=y;this.text=text;this.color=color;this.size=size||14;
   this.vy=-1.5;this.vx=(Math.random()-0.5)*1.5;this.alpha=1;this.life=30;
@@ -233,24 +341,309 @@ Particle.prototype.draw=function(){
 
 function addParticle(x,y,text,color,size){particles.push(new Particle(x,y,text,color,size));}
 
+// ====== 持续伤害区域 ======
+function DamageZone(x,y,radius,duration,dmg,owner,color){
+  this.x=x;this.y=y;this.radius=radius;
+  this.duration=duration;this.maxDuration=duration;
+  this.dmg=dmg;this.owner=owner;
+  this.timer=0;this.tickRate=15;
+  this.color=color||'rgba(255,100,0,0.3)';
+}
+
+DamageZone.prototype.update=function(){
+  this.timer++;
+  this.duration--;
+  
+  if(this.timer%this.tickRate===0){
+    for(var i=0;i<enemies.length;i++){
+      var e=enemies[i];
+      var dist=Math.sqrt((e.x-this.x)**2+(e.y-this.y)**2);
+      if(dist<this.radius){
+        var dmg=Math.max(1,this.dmg-e.def);
+        e.hp-=dmg;
+        addParticle(e.x,e.y-18,'-'+dmg,'#ff6600',12);
+        if(e.hp<=0){killEnemy(e,i);i--;}
+      }
+    }
+  }
+  
+  return this.duration>0;
+};
+
+DamageZone.prototype.draw=function(){
+  var sx=GAME_X+this.x,sy=GAME_Y+this.y;
+  var alpha=this.duration/this.maxDuration*0.5;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.fillStyle=this.color;
+  ctx.beginPath();ctx.arc(sx,sy,this.radius,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=this.color.replace('0.3','0.8');
+  ctx.lineWidth=3;
+  ctx.beginPath();ctx.arc(sx,sy,this.radius,0,Math.PI*2);ctx.stroke();
+  ctx.restore();
+};
+
+// ====== 自动攻击 ======
+function autoAttack(){
+  var nearest=null,minDist=Infinity;
+  for(var i=0;i<enemies.length;i++){
+    var e=enemies[i];
+    var dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
+    if(dist<minDist){minDist=dist;nearest=e;}
+  }
+  
+  if(nearest&&minDist<player.atkRange){
+    var cls=CLASSES[heroClass];
+    var color=cls.color;
+    projectiles.push(new Projectile(player.x,player.y,nearest.x,nearest.y,player.atk,'auto',color));
+  }
+}
+
+// ====== 击杀敌人 ======
 function killEnemy(e,index){
   kills++;
   player.exp+=e.exp;
   addParticle(e.x,e.y,'+'+e.exp+' EXP','#4fc3f7',12);
   enemies.splice(index,1);
+  
   while(player.exp>=player.expNeed){
     player.exp-=player.expNeed;
     player.level++;
     player.expNeed=Math.floor(100*Math.pow(player.level,1.12));
-    player.maxHp+=22;player.hp=player.maxHp;
-    player.maxMp+=12;player.mp=player.maxMp;
-    player.atk+=3;player.def+=1;
+    player.maxHp+=25;player.hp=player.maxHp;
+    player.maxMp+=15;player.mp=player.maxMp;
+    player.atk+=4;player.def+=2;
     addParticle(player.x,player.y-35,'LEVEL UP!','#ffd700',20);
     showMessage('Level '+player.level);
+    
+    // 5级显示转职按钮
+    if(player.level>=5&&heroClass==='warrior'){
+      document.getElementById('class-btn').style.display='block';
+    }
+    
+    // 15级大招升级
+    if(player.level>=15&&heroUltLevel===1){
+      heroUltLevel=2;
+      showMessage('大招升级!');
+    }
   }
   updateHUD();
 }
 
+// ====== 技能释放 ======
+function useSkill(idx){
+  var skill=player.skills[idx];
+  var mpCost=idx===3?20:8;
+  if(skill.cd>0||player.mp<mpCost)return;
+  
+  skill.cd=skill.maxCd;
+  player.mp-=mpCost;
+  updateHUD();
+  
+  var cls=CLASSES[heroClass];
+  
+  if(idx===0){
+    // Q技能 - 根据职业变化
+    if(heroClass==='blademaster'){
+      // 剑圣: 剑气斩 - 远程穿透
+      var angle=Math.atan2(player.facing===1?0:0,player.facing);
+      for(var i=-1;i<=1;i++){
+        var a=angle+i*0.3;
+        projectiles.push(new Projectile(player.x,player.y,player.x+Math.cos(a)*200,player.y+Math.sin(a)*200,player.atk*1.2,'sword','#66ccff'));
+      }
+    }else if(heroClass==='mountainking'){
+      // 山丘: 雷霆一击 - 范围眩晕伤害
+      for(var i=0;i<enemies.length;i++){
+        var e=enemies[i];
+        var dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
+        if(dist<player.spinRange*1.2){
+          var dmg=Math.max(1,player.atk*1.8-e.def);
+          e.hp-=dmg;
+          e.speed*=0.5; // 减速
+          addParticle(e.x,e.y-18,'-'+dmg,'#ffd700',14);
+          if(e.hp<=0){killEnemy(e,i);i--;}
+        }
+      }
+      addParticle(player.x,player.y,'THUNDER!','#ffd700',16);
+      screenShake=6;
+    }else if(heroClass==='bloodmage'){
+      // 血法: 火球术
+      var nearest=null,minDist=Infinity;
+      for(var i=0;i<enemies.length;i++){
+        var e=enemies[i],dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
+        if(dist<minDist){minDist=dist;nearest=e;}
+      }
+      if(nearest){
+        projectiles.push(new Projectile(player.x,player.y,nearest.x,nearest.y,player.atk*1.5,'fire','#ff4444'));
+      }
+    }else{
+      // 战士: 普通攻击
+      var nearest=null,minDist=Infinity;
+      for(var i=0;i<enemies.length;i++){
+        var e=enemies[i],dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
+        if(dist<minDist){minDist=dist;nearest=e;}
+      }
+      if(nearest&&minDist<player.atkRange){
+        projectiles.push(new Projectile(player.x,player.y,nearest.x,nearest.y,player.atk*skill.dmg,'arrow','#4fc3f7'));
+      }
+    }
+  }else if(idx===1){
+    // W技能 - 旋风斩
+    if(heroClass==='blademaster'){
+      // 剑圣: 快速三连斩
+      var nearest=null,minDist=Infinity;
+      for(var i=0;i<enemies.length;i++){
+        var e=enemies[i],dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
+        if(dist<minDist){minDist=dist;nearest=e;}
+      }
+      if(nearest&&minDist<player.spinRange*1.5){
+        for(var j=0;j<3;j++){
+          setTimeout(function(){
+            if(nearest&&nearest.hp>0){
+              var dmg=Math.max(1,player.atk*1.2-nearest.def);
+              nearest.hp-=dmg;
+              addParticle(nearest.x,nearest.y-18,'-'+dmg,'#66ccff',14);
+              if(nearest.hp<=0){
+                var idx=enemies.indexOf(nearest);
+                if(idx>=0)killEnemy(nearest,idx);
+              }
+            }
+          },j*150);
+        }
+      }
+    }else if(heroClass==='mountainking'){
+      // 山丘: 大地震击
+      for(var i=0;i<enemies.length;i++){
+        var e=enemies[i],dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
+        if(dist<player.spinRange*1.3){
+          var dmg=Math.max(1,player.atk*skill.dmg*1.2-e.def);
+          e.hp-=dmg;e.speed*=0.3;
+          addParticle(e.x,e.y-18,'-'+dmg,'#ffd700',16);
+          if(e.hp<=0){killEnemy(e,i);i--;}
+        }
+      }
+      screenShake=8;
+    }else if(heroClass==='bloodmage'){
+      // 血法: 烈焰之地
+      damageZones.push(new DamageZone(player.x,player.y,80,90,player.atk*0.5,player,'rgba(255,68,0,0.3)'));
+      addParticle(player.x,player.y,'FLAME!','#ff4444',16);
+    }else{
+      // 战士: 原版旋风斩
+      for(var i=0;i<enemies.length;i++){
+        var e=enemies[i],dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
+        if(dist<player.spinRange){
+          var dmg=Math.max(1,player.atk*skill.dmg-e.def);
+          e.hp-=dmg;addParticle(e.x,e.y-18,'-'+dmg,'#ff6f00',14);
+          if(e.hp<=0){killEnemy(e,i);i--;}
+        }
+      }
+      addParticle(player.x,player.y,'SPIN!','#4fc3f7',16);screenShake=5;
+    }
+  }else if(idx===2){
+    // E技能 - 治疗
+    var healAmt=skill.heal+player.level*5;
+    player.hp=Math.min(player.maxHp,player.hp+healAmt);
+    addParticle(player.x,player.y-25,'+'+healAmt,'#4caf50',14);updateHUD();
+  }else if(idx===3){
+    // R大招 - 根据职业和等级变化
+    var ultiDmg=skill.dmg*(heroUltLevel===2?1.5:1);
+    
+    if(heroClass==='blademaster'){
+      // 剑圣: 剑刃风暴 - 持续旋转
+      var duration=heroUltLevel===2?180:120;
+      var spinCount=heroUltLevel===2?8:5;
+      addParticle(player.x,player.y,'BLADE STORM!','#66ccff',24);
+      
+      for(var s=0;s<spinCount;s++){
+        setTimeout(function(){
+          for(var i=0;i<enemies.length;i++){
+            var e=enemies[i],dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
+            if(dist<150){
+              var dmg=Math.max(1,player.atk*1.5-e.def);
+              e.hp-=dmg;
+              addParticle(e.x,e.y-18,'-'+dmg,'#66ccff',12);
+              if(e.hp<=0){killEnemy(e,i);i--;}
+            }
+          }
+          screenShake=4;
+        },s*200);
+      }
+    }else if(heroClass==='mountainking'){
+      // 山丘: 天神下凡 - 变大增强
+      player.isGodMode=true;
+      player.godModeTimer=heroUltLevel===2?360:240;
+      player.atk*=2;player.def*=2;player.size=25;
+      addParticle(player.x,player.y,'AVATAR!','#ffd700',28);
+      showMessage('天神下凡!');
+    }else if(heroClass==='bloodmage'){
+      // 血法: 烈焰风暴 - 大范围持续伤害
+      var radius=heroUltLevel===2?200:150;
+      var dur=heroUltLevel===2?240:180;
+      damageZones.push(new DamageZone(player.x,player.y,radius,dur,player.atk*0.8,player,'rgba(255,0,0,0.4)'));
+      addParticle(player.x,player.y,'INFERNO!','#ff2222',28);
+      screenShake=10;
+    }else{
+      // 战士: 原版全屏伤害
+      for(var i=0;i<enemies.length;i++){
+        var e=enemies[i],dmg=Math.max(1,player.atk*ultiDmg-e.def);
+        e.hp-=dmg;addParticle(e.x,e.y-18,'-'+dmg,'#ffd700',18);
+        if(e.hp<=0){killEnemy(e,i);i--;}
+      }
+      addParticle(player.x,player.y,'ULTIMATE!','#ffd700',24);screenShake=8;
+    }
+  }
+}
+
+// ====== 转职系统 ======
+function selectClass(className){
+  heroClass=className;
+  var cls=CLASSES[className];
+  
+  // 更新属性
+  player.atk+=10;
+  player.def+=8;
+  player.maxHp+=50;
+  player.hp=player.maxHp;
+  player.critRate=className==='blademaster'?0.25:0.15;
+  
+  // 更新技能名称
+  if(className==='blademaster'){
+    document.getElementById('skill-q').textContent='剑气';
+    document.getElementById('skill-w').textContent='三连斩';
+    document.getElementById('skill-r').textContent='剑刃风暴';
+  }else if(className==='mountainking'){
+    document.getElementById('skill-q').textContent='雷霆';
+    document.getElementById('skill-w').textContent='大地震击';
+    document.getElementById('skill-r').textContent='天神下凡';
+  }else if(className==='bloodmage'){
+    document.getElementById('skill-q').textContent='火球';
+    document.getElementById('skill-w').textContent='烈焰之地';
+    document.getElementById('skill-r').textContent='烈焰风暴';
+  }
+  
+  // 更新UI
+  document.getElementById('class-display').textContent=cls.name;
+  document.getElementById('class-display').style.display='block';
+  document.getElementById('class-select').classList.remove('show');
+  document.getElementById('class-btn').style.display='none';
+  
+  showMessage('转职: '+cls.name+'!');
+  addParticle(player.x,player.y-40,'CLASS UP!','#ffd700',22);
+  updateHUD();
+}
+
+// 事件监听
+document.querySelectorAll('.class-card').forEach(function(card){
+  card.addEventListener('click',function(){
+    selectClass(this.dataset.class);
+  });
+});
+
+document.getElementById('class-btn').addEventListener('click',function(){
+  document.getElementById('class-select').classList.add('show');
+});
+
+// ====== 消息和UI ======
 function showMessage(text){
   var msg=document.getElementById('msg');
   msg.innerHTML=text.replace(/\n/g,'<br>');
@@ -296,6 +689,7 @@ function updateHUD(){
   }
 }
 
+// ====== 输入控制 ======
 document.addEventListener('keydown',function(e){keys[e.key.toLowerCase()]=true;});
 document.addEventListener('keyup',function(e){keys[e.key.toLowerCase()]=false;});
 
@@ -343,47 +737,11 @@ document.querySelectorAll('.skill-btn').forEach(function(btn){
   btn.addEventListener('click',function(e){e.preventDefault();useSkill(parseInt(this.dataset.skill));});
 });
 
-document.getElementById('btn-attack').addEventListener('touchstart',function(e){e.preventDefault();useSkill(0);});
-document.getElementById('btn-attack').addEventListener('click',function(e){e.preventDefault();useSkill(0);});
-
-function useSkill(idx){
-  var skill=player.skills[idx];
-  if(skill.cd>0||player.mp<5)return;
-  skill.cd=skill.maxCd;player.mp-=5;updateHUD();
-  if(idx===0){
-    var nearest=null,minDist=Infinity;
-    for(var i=0;i<enemies.length;i++){
-      var e=enemies[i],dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
-      if(dist<minDist){minDist=dist;nearest=e;}
-    }
-    if(nearest&&minDist<player.atkRange){
-      projectiles.push(new Projectile(player.x,player.y,nearest.x,nearest.y,player.atk*skill.dmg));
-    }
-  }else if(idx===1){
-    for(var i=0;i<enemies.length;i++){
-      var e=enemies[i],dist=Math.sqrt((e.x-player.x)**2+(e.y-player.y)**2);
-      if(dist<player.spinRange){
-        var dmg=Math.max(1,player.atk*skill.dmg-e.def);
-        e.hp-=dmg;addParticle(e.x,e.y-18,'-'+dmg,'#ff6f00',14);
-        if(e.hp<=0){killEnemy(e,i);i--;}
-      }
-    }
-    addParticle(player.x,player.y,'SPIN!','#4fc3f7',16);screenShake=5;
-  }else if(idx===2){
-    player.hp=Math.min(player.maxHp,player.hp+skill.heal);
-    addParticle(player.x,player.y-25,'+'+skill.heal,'#4caf50',14);updateHUD();
-  }else if(idx===3){
-    for(var i=0;i<enemies.length;i++){
-      var e=enemies[i],dmg=Math.max(1,player.atk*skill.dmg-e.def);
-      e.hp-=dmg;addParticle(e.x,e.y-18,'-'+dmg,'#ffd700',18);
-      if(e.hp<=0){killEnemy(e,i);i--;}
-    }
-    addParticle(player.x,player.y,'ULTIMATE!','#ffd700',24);screenShake=8;
-  }
-}
-
+// ====== 主循环 ======
 function update(){
   if(gameState!=='playing')return;
+  
+  // 移动
   var mx=0,my=0;
   if(keys['w']||keys['arrowup'])my=-1;
   if(keys['s']||keys['arrowdown'])my=1;
@@ -397,24 +755,74 @@ function update(){
   }
   player.x=Math.max(18,Math.min(GAME_W-18,player.x));
   player.y=Math.max(18,Math.min(GAME_H-18,player.y));
-  if(player.mp<player.maxMp)player.mp+=0.06;
+  
+  // MP回复
+  if(player.mp<player.maxMp)player.mp+=0.08;
+  
+  // 技能冷却
   for(var i=0;i<player.skills.length;i++)if(player.skills[i].cd>0)player.skills[i].cd-=0.016;
+  
+  // 天神下凡计时
+  if(player.isGodMode){
+    player.godModeTimer--;
+    if(player.godModeTimer<=0){
+      player.isGodMode=false;
+      player.atk=Math.floor(player.atk/2);
+      player.def=Math.floor(player.def/2);
+      player.size=18;
+    }
+  }
+  
+  // 屏幕震动
   if(screenShake>0)screenShake*=0.85;
   if(screenShake<0.5)screenShake=0;
+  
+  // 自动攻击
+  player.autoAtkTimer+=0.016;
+  var cls=CLASSES[heroClass];
+  if(player.autoAtkTimer>=cls.atkSpd){
+    player.autoAtkTimer=0;
+    autoAttack();
+  }
+  
+  // 波次计时
   waveTimer-=0.016;
   if(waveTimer<=0){
     waveTimer=22+wave*2;wave++;
     showWaveAlert(wave);
-    var count=2+Math.floor(wave/2),hasBoss=wave%5===0;
-    if(hasBoss)count=1;
+    
+    var count=3+Math.floor(wave/2);
+    var hasBoss=wave%5===0;
+    
+    if(hasBoss){
+      // Boss从路线3出现
+      var path=PATHS[2];
+      enemies.push(new Enemy(path[0].x,path[0].y,'boss',2));
+      count-=1;
+    }
+    
     for(var i=0;i<count;i++){
-      var sp=spawnPoints[Math.floor(Math.random()*spawnPoints.length)];
-      enemies.push(new Enemy(sp.x+(Math.random()-0.5)*30,sp.y+(Math.random()-0.5)*30,hasBoss?'boss':'goblin'));
+      var pathIdx=Math.floor(Math.random()*PATHS.length);
+      var path=PATHS[pathIdx];
+      var type=wave>3&&Math.random()<0.3?'fast':'goblin';
+      enemies.push(new Enemy(path[0].x+(Math.random()-0.5)*20,path[0].y+(Math.random()-0.5)*20,type,pathIdx));
     }
   }
-  for(var i=0;i<enemies.length;i++)enemies[i].update();
+  
+  // 更新敌人
+  for(var i=enemies.length-1;i>=0;i--){
+    if(!enemies[i].update())enemies.splice(i,1);
+  }
+  
+  // 更新投射物
   for(var i=projectiles.length-1;i>=0;i--)if(!projectiles[i].update())projectiles.splice(i,1);
+  
+  // 更新粒子
   for(var i=particles.length-1;i>=0;i--)if(!particles[i].update())particles.splice(i,1);
+  
+  // 更新伤害区域
+  for(var i=damageZones.length-1;i>=0;i--)if(!damageZones[i].update())damageZones.splice(i,1);
+  
   updateHUD();
 }
 
@@ -422,84 +830,81 @@ function draw(){
   ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,SCREEN_W,SCREEN_H);
   ctx.save();
   if(screenShake>0)ctx.translate((Math.random()-0.5)*screenShake,(Math.random()-0.5)*screenShake);
+  
+  // 背景
   ctx.strokeStyle='#4a90d9';ctx.lineWidth=3;ctx.strokeRect(GAME_X-2,GAME_Y-2,GAME_W+4,GAME_H+4);
   var grad=ctx.createRadialGradient(GAME_X+GAME_W/2,GAME_Y+GAME_H/2,0,GAME_X+GAME_W/2,GAME_Y+GAME_H/2,GAME_W);
   grad.addColorStop(0,'#1a2a3a');grad.addColorStop(1,'#0d1b2a');
   ctx.fillStyle=grad;ctx.fillRect(GAME_X,GAME_Y,GAME_W,GAME_H);
+  
+  // 网格
   ctx.strokeStyle='rgba(100,150,200,0.1)';ctx.lineWidth=1;
   for(var x=0;x<=GAME_W;x+=40){ctx.beginPath();ctx.moveTo(GAME_X+x,GAME_Y);ctx.lineTo(GAME_X+x,GAME_Y+GAME_H);ctx.stroke();}
   for(var y=0;y<=GAME_H;y+=40){ctx.beginPath();ctx.moveTo(GAME_X,GAME_Y+y);ctx.lineTo(GAME_X+GAME_W,GAME_Y+y);ctx.stroke();}
-  for(var i=0;i<spawnPoints.length;i++){
-    var sp=spawnPoints[i];
-    ctx.fillStyle='rgba(239,83,80,0.15)';
-    ctx.beginPath();ctx.arc(GAME_X+sp.x,GAME_Y+sp.y,30,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#ef5350';ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(GAME_X+sp.x,GAME_Y+sp.y,30,0,Math.PI*2);ctx.stroke();
+  
+  // 绘制路线
+  var pathColors=['rgba(100,200,255,0.3)','rgba(255,200,100,0.3)','rgba(255,100,100,0.3)'];
+  for(var p=0;p<PATHS.length;p++){
+    var path=PATHS[p];
+    ctx.strokeStyle=pathColors[p];ctx.lineWidth=8;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();
+    ctx.moveTo(GAME_X+path[0].x,GAME_Y+path[0].y);
+    for(var i=1;i<path.length;i++){
+      ctx.lineTo(GAME_X+path[i].x,GAME_Y+path[i].y);
+    }
+    ctx.stroke();
+    
+    // 路线起点标记
+    ctx.fillStyle=pathColors[p].replace('0.3','0.6');
+    ctx.beginPath();ctx.arc(GAME_X+path[0].x,GAME_Y+path[0].y,12,0,Math.PI*2);ctx.fill();
   }
+  
+  // 绘制伤害区域
+  for(var i=0;i<damageZones.length;i++)damageZones[i].draw();
+  
+  // 绘制敌人
   for(var i=0;i<enemies.length;i++)enemies[i].draw();
+  
+  // 绘制投射物
   for(var i=0;i<projectiles.length;i++)projectiles[i].draw();
+  
+  // 绘制粒子
   for(var i=0;i<particles.length;i++)particles[i].draw();
+  
+  // 绘制玩家
   var px=GAME_X+player.x,py=GAME_Y+player.y;
+  var cls=CLASSES[heroClass];
+  
+  // 天神下凡特效
+  if(player.isGodMode){
+    ctx.save();
+    ctx.globalAlpha=0.3+Math.sin(Date.now()/100)*0.2;
+    ctx.fillStyle='#ffd700';
+    ctx.beginPath();ctx.arc(px,py,35,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+  
+  // 影子
   ctx.fillStyle='rgba(0,0,0,0.35)';ctx.beginPath();ctx.ellipse(px,py+20,18,6,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#4a90d9';ctx.beginPath();ctx.arc(px,py,18,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#2a6099';ctx.beginPath();ctx.arc(px,py-2,12,0,Math.PI*2);ctx.fill();
+  
+  // 身体
+  ctx.fillStyle=cls.color;ctx.beginPath();ctx.arc(px,py,player.size||18,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.2)';ctx.beginPath();ctx.arc(px,py-2,12,0,Math.PI*2);ctx.fill();
+  
+  // 帽子/头饰
   ctx.fillStyle='#ffd700';ctx.fillRect(px-3,py-24,6,8);
+  
+  // 眼睛
   ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(px-6,py-4,4,0,Math.PI*2);ctx.arc(px+6,py-4,4,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='#000';ctx.beginPath();ctx.arc(px-6,py-4,2,0,Math.PI*2);ctx.arc(px+6,py-4,2,0,Math.PI*2);ctx.fill();
-  ctx.restore();
-}
-
-function loop(){update();draw();requestAnimationFrame(loop);}
-updateHUD();loop();
-showMessage('DEFEND!');
-})();
-</script>
-</body>
-</html>
-';ctx.lineWidth=2;ctx.stroke();
-  
-  // Spawn/End markers
-  ctx.fillStyle='#ef5350';
-  ctx.beginPath();ctx.arc(GAME_X+pathPoints[0].x,GAME_Y+pathPoints[0].y,8,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#4caf50';
-  ctx.beginPath();ctx.arc(GAME_X+pathPoints[pathPoints.length-1].x,GAME_Y+pathPoints[pathPoints.length-1].y,8,0,Math.PI*2);ctx.fill();
-  
-  // Entities
-  for(var i=0;i<enemies.length;i++)enemies[i].draw();
-  for(var i=0;i<projectiles.length;i++)projectiles[i].draw();
-  for(var i=0;i<particles.length;i++)particles[i].draw();
-  
-  // Player
-  var px=GAME_X+player.x,py=GAME_Y+player.y;
-  ctx.fillStyle='rgba(0,0,0,0.35)';ctx.beginPath();ctx.ellipse(px,py+18,16,5,0,0,Math.PI*2);ctx.fill();
-  var c=CLASSES[player.class];
-  ctx.fillStyle=c.color;
-  ctx.beginPath();ctx.arc(px,py,17,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(0,0,0,0.3)';
-  ctx.beginPath();ctx.arc(px-5,py-5,10,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#fff';
-  ctx.beginPath();ctx.arc(px-6,py-3,4,0,Math.PI*2);ctx.arc(px+6,py-3,4,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#000';
-  ctx.beginPath();ctx.arc(px-6,py-3,2,0,Math.PI*2);ctx.arc(px+6,py-3,2,0,Math.PI*2);ctx.fill();
-  
-  // Attack range when enemy near
-  var nearEnemy=false;
-  for(var i=0;i<enemies.length;i++){
-    var dist=Math.sqrt((enemies[i].x-player.x)**2+(enemies[i].y-player.y)**2);
-    if(dist<player.atkRange){nearEnemy=true;break;}
-  }
-  if(nearEnemy){
-    ctx.strokeStyle='rgba(74,144,217,0.3)';
-    ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(px,py,player.atkRange,0,Math.PI*2);ctx.stroke();
-  }
   
   ctx.restore();
 }
 
 function loop(){update();draw();requestAnimationFrame(loop);}
 updateHUD();loop();
-showMessage('DEFEND THE BASE');
+showMessage('WARCRAFT RPG\n自动攻击已开启!');
+
 })();
 </script>
 </body>
