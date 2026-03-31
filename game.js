@@ -309,6 +309,9 @@ NeutralCreature.prototype.update=function(){
 NeutralCreature.prototype.draw=function(){
   if(!this.alive)return;
   var x=this.x*W,y=this.y*H,sz=this.sz*Math.min(W,H);
+  // 倒计时
+  var elapsed=(Date.now()-this.spawnTime)/1000;
+  var remain=Math.max(0,Math.ceil(60-elapsed));
   // 光晕 - 脉冲
   ctx.save();ctx.globalAlpha=0.2+Math.sin(Date.now()/300)*0.1;
   var gl=ctx.createRadialGradient(x,y,0,x,y,sz*2);gl.addColorStop(0,this.col);gl.addColorStop(1,'transparent');
@@ -322,8 +325,10 @@ NeutralCreature.prototype.draw=function(){
   // 血条
   var bw=sz*2.2,by=y-sz-8;ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(x-bw/2,by,bw,4);
   ctx.fillStyle=this.col;ctx.fillRect(x-bw/2,by,bw*(this.hp/this.maxHp),4);
-  // 提示文字
-  ctx.font='bold 9px Arial';ctx.fillStyle='#fff';ctx.fillText('点击攻击',x,y+sz+12);
+  // 倒计时读秒
+  ctx.font='bold 10px Arial';ctx.fillStyle=remain<=10?'#f44336':'#ffd700';
+  ctx.fillText(remain+'s',x,y+sz+12);
+  ctx.font='8px Arial';ctx.fillStyle='#fff';ctx.fillText('点击攻击',x,y+sz+24);
 };
 NeutralCreature.prototype.hitTest=function(mx,my){
   var x=this.x*W,y=this.y*H,sz=this.sz*Math.min(W,H)*1.5;
@@ -338,12 +343,8 @@ NeutralCreature.prototype.die=function(){
 
 // 生成中立怪
 function spawnNeutrals(){
-  if(wave<5)return;
-  var count=1+Math.floor((wave-5)/3); // W5=1只, W8=2只, W11=3只...
-  for(var i=0;i<count;i++){
-    var type=Math.random()<0.5?'gold':'exp';
-    neutrals.push(new NeutralCreature(type));
-  }
+  if(wave<5||wave%5!==0)return; // 每5波出现
+  for(var i=0;i<2;i++)neutrals.push(new NeutralCreature(Math.random()<0.5?'gold':'exp'));
 }
 
 // ====== 音效 ======
@@ -647,7 +648,9 @@ function showToast(t){var e=document.getElementById('toast');e.textContent=t;e.s
 
 // ====== 自动攻击 ======
 function autoAtk(){
-  hero.atkTimer+=0.016;var hd=hData();if(hero.atkTimer<hd.atkSpd)return;hero.atkTimer=0;
+  hero.atkTimer+=0.016;var hd=hData();
+  var atkInterval=hd.atkSpd*0.5/Math.pow(1.2,hero.promo||0); // 200%速度 + 每转+120%
+  if(hero.atkTimer<atkInterval)return;hero.atkTimer=0;
   var hp=hPos(),range=hd.range*Math.min(W,H);
   if(dungeonEnemy){
     var d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*(hero._atkBonus||1)));
@@ -1006,8 +1009,8 @@ function spawnWave(){
 }
 
 function checkEnd(){
-  if(kills>=3000)gameOver('🏆 胜利！击杀3000敌人！');
-  if(enemies.length>=300)gameOver('敌人超过300!');
+  if(kills>=1500)gameOver('🏆 胜利！击杀1500敌人！');
+  if(enemies.length>=180)gameOver('敌人超过180!');
   if(hero.hp<=0)gameOver('英雄阵亡!');
 }
 function gameOver(r){state='gameover';document.getElementById('go-wave').textContent=wave;document.getElementById('go-kills').textContent=kills;document.getElementById('go-reason').textContent=r;document.getElementById('gameover').classList.add('show');}
@@ -1017,7 +1020,7 @@ function updateUI(){
   document.getElementById('lv').textContent=hero.lv;document.getElementById('side-lv').textContent=hero.lv;
   document.getElementById('gold').textContent=gold;document.getElementById('wave').textContent=wave;
   document.getElementById('kills').textContent=kills;document.getElementById('enemies').textContent=enemies.length;
-  document.getElementById('enemies').style.color=enemies.length>250?'#f44336':enemies.length>200?'#ff9800':'#ffd700';
+  document.getElementById('enemies').style.color=enemies.length>150?'#f44336':enemies.length>120?'#ff9800':'#ffd700';
   var hd=hData();document.getElementById('class-skin').textContent=hd.avatar;document.getElementById('class-name').textContent=hd.cnName;
   document.getElementById('class-sub').textContent='【'+hd.title+'】'+hd.name;
   document.getElementById('passive-skill').textContent=hd.extraPassive||'';
@@ -1178,7 +1181,7 @@ function draw(){
 function update(){
   if(state!=='playing')return;if(moveCd>0)moveCd-=0.016;if(showRangeTimer>0)showRangeTimer--;if(adCooldown>0)adCooldown-=0.016;
   if(hero.hp>0)autoAtk();if(hero.mp<hero.maxMp)hero.mp+=getMpRegen()/60;for(var i=0;i<hero.skills.length;i++)if(hero.skills[i].cd>0)hero.skills[i].cd-=0.016;
-  for(var i=enemies.length-1;i>=0;i--){enemies[i].update();if(enemies[i].hp<=0){kills++;gold+=enemies[i].boss?60:8;gainExp(enemies[i].exp);playSound('ult');
+  for(var i=enemies.length-1;i>=0;i--){enemies[i].update();if(enemies[i].hp<=0){kills++;gold+=enemies[i].boss?10:2;gainExp(enemies[i].exp);playSound('ult');
     // 被动: 燃魂 - 击杀恢复HP和MP
     var hd=hData();if(hd.extraPassive&&hd.extraPassive.indexOf('燃魂')>=0){hero.hp=Math.min(hero.maxHp,hero.hp+10);hero.mp=Math.min(hero.maxMp,hero.mp+5);}
     // 被动: 剑意 - 击杀叠加攻击力
