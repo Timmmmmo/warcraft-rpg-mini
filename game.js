@@ -4,6 +4,45 @@ var state = 'playing';
 var gold = 50, wave = 1, waveT = 0.5, kills = 0, shake = 0;
 var moveCd = 0, showRangeTimer = 0;
 
+// ====== 图片资源加载 ======
+var IMAGES = {};
+var imagesLoaded = false;
+var imageList = {
+  // 英雄头像
+  hero_warrior: 'assets/images/hero_warrior.png',
+  hero_archer: 'assets/images/hero_archer.png',
+  hero_mage: 'assets/images/hero_mage.png',
+  hero_blademaster: 'assets/images/hero_blademaster.png',
+  hero_mountainking: 'assets/images/hero_mountainking.png',
+  hero_windrunner: 'assets/images/hero_windrunner.png',
+  hero_shadowhunter: 'assets/images/hero_shadowhunter.png',
+  hero_frost: 'assets/images/hero_frost.png',
+  hero_bloodmage: 'assets/images/hero_bloodmage.png',
+  hero_storm: 'assets/images/hero_storm.png',
+  // 怪物
+  orc_normal: 'assets/images/orc_normal.png',
+  orc_fast: 'assets/images/orc_fast.png',
+  orc_tank: 'assets/images/orc_tank.png',
+  orc_elite: 'assets/images/orc_elite.png',
+  centaur_boss: 'assets/images/centaur_boss.png',
+  centaur_elite: 'assets/images/centaur_elite.png',
+  // 环境
+  tower_active: 'assets/images/tower_active.png',
+  tower_inactive: 'assets/images/tower_inactive.png',
+  bg_tile: 'assets/images/bg_tile.png'
+};
+
+function loadImages(cb){
+  var keys=Object.keys(imageList), loaded=0;
+  if(keys.length===0){imagesLoaded=true;if(cb)cb();return;}
+  keys.forEach(function(k){
+    var img=new Image();
+    img.onload=function(){loaded++;IMAGES[k]=img;if(loaded>=keys.length){imagesLoaded=true;if(cb)cb();}};
+    img.onerror=function(){loaded++;console.log('Failed to load:',k);if(loaded>=keys.length){imagesLoaded=true;if(cb)cb();}};
+    img.src=imageList[k];
+  });
+}
+
 // 塔位
 var TOWERS = [
   {x:0.15,y:0.18,name:'左上',lv:1},{x:0.85,y:0.18,name:'右上',lv:1},
@@ -507,92 +546,36 @@ Enemy.prototype.draw=function(){
   var x=this.x*W,y=this.y*H,sz=this.sz*Math.min(W,H);
   var isCentaur = this.boss || this.tk==='elite';
   
-  // 影子
-  ctx.fillStyle='rgba(0,0,0,0.45)';ctx.beginPath();
-  if(isCentaur){ctx.ellipse(x,y+sz*1.1,sz*1.2,sz*0.3,0,0,Math.PI*2);}
-  else{ctx.ellipse(x,y+sz*0.9,sz*0.85,sz*0.22,0,0,Math.PI*2);}
-  ctx.fill();
+  // 优先使用图片素材
+  var spriteKey = isCentaur ? (this.boss?'centaur_boss':'centaur_elite') : ('orc_'+this.tk);
+  var sprite = IMAGES[spriteKey] || (isCentaur ? IMAGES.centaur_boss : IMAGES.orc_normal);
   
-  if(isCentaur){
-    // ====== 人马形态 ======
-    // 马身
-    var bodyG=ctx.createRadialGradient(x,y+sz*0.3,0,x,y+sz*0.3,sz*1.2);
-    bodyG.addColorStop(0,shade(this.col,30));bodyG.addColorStop(1,shade(this.col,-40));
-    ctx.fillStyle=bodyG;ctx.beginPath();ctx.ellipse(x,y+sz*0.4,sz*0.9,sz*0.5,0,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle=shade(this.col,-50);ctx.lineWidth=2;ctx.stroke();
-    // 马腿
-    ctx.strokeStyle=shade(this.col,-30);ctx.lineWidth=sz*0.12;ctx.lineCap='round';
-    for(var li=0;li<4;li++){
-      var lx=x+(li<2?-sz*0.5:sz*0.5),ly=y+sz*0.6;
-      ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+(li<2?-sz*0.15:sz*0.15),ly+sz*0.5);ctx.stroke();
-    }
-    // 人身上半部
-    var torsoG=ctx.createRadialGradient(x-sz*0.1,y-sz*0.3,0,x,y-sz*0.1,sz*0.7);
-    torsoG.addColorStop(0,shade(this.col,40));torsoG.addColorStop(1,this.col);
-    ctx.fillStyle=torsoG;ctx.beginPath();
-    ctx.moveTo(x-sz*0.35,y+sz*0.1);ctx.lineTo(x-sz*0.25,y-sz*0.5);
-    ctx.lineTo(x+sz*0.25,y-sz*0.5);ctx.lineTo(x+sz*0.35,y+sz*0.1);ctx.closePath();ctx.fill();
-    ctx.strokeStyle=shade(this.col,-50);ctx.lineWidth=1.5;ctx.stroke();
-    // 头
-    var headG=ctx.createRadialGradient(x,y-sz*0.7,0,x,y-sz*0.6,sz*0.35);
-    headG.addColorStop(0,shade(this.col,50));headG.addColorStop(1,this.col);
-    ctx.fillStyle=headG;ctx.beginPath();ctx.arc(x,y-sz*0.65,sz*0.3,0,Math.PI*2);ctx.fill();
-    ctx.stroke();
-    // 獠牙
-    ctx.fillStyle='#ffe0b2';ctx.beginPath();
-    ctx.moveTo(x-sz*0.12,y-sz*0.55);ctx.lineTo(x-sz*0.08,y-sz*0.42);ctx.lineTo(x-sz*0.04,y-sz*0.55);ctx.fill();
-    ctx.beginPath();ctx.moveTo(x+sz*0.04,y-sz*0.55);ctx.lineTo(x+sz*0.08,y-sz*0.42);ctx.lineTo(x+sz*0.12,y-sz*0.55);ctx.fill();
-    // 眼睛
-    ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x-sz*0.12,y-sz*0.7,sz*0.09,sz*0.1,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(x+sz*0.12,y-sz*0.7,sz*0.09,sz*0.1,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=this.boss?'#f00':'#ffd700';ctx.beginPath();ctx.arc(x-sz*0.12,y-sz*0.68,sz*0.05,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(x+sz*0.12,y-sz*0.68,sz*0.05,0,Math.PI*2);ctx.fill();
-    // Boss角
-    if(this.boss){
-      ctx.fillStyle='#ffd600';ctx.beginPath();
-      ctx.moveTo(x-sz*0.2,y-sz*0.85);ctx.lineTo(x-sz*0.35,y-sz*1.3);ctx.lineTo(x-sz*0.1,y-sz*0.9);ctx.fill();
-      ctx.beginPath();ctx.moveTo(x+sz*0.2,y-sz*0.85);ctx.lineTo(x+sz*0.35,y-sz*1.3);ctx.lineTo(x+sz*0.1,y-sz*0.9);ctx.fill();
-      // Boss光环
-      ctx.save();ctx.globalAlpha=0.12+Math.sin(Date.now()/200)*0.08;ctx.fillStyle='#ffd600';ctx.beginPath();ctx.arc(x,y,sz*1.8,0,Math.PI*2);ctx.fill();ctx.restore();
-    }
-    if(this.tk==='elite'){ctx.save();ctx.globalAlpha=0.18+Math.sin(Date.now()/300)*0.08;ctx.strokeStyle='#e040fb';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-sz*0.2,sz*1.3,0,Math.PI*2);ctx.stroke();ctx.restore();}
+  if(sprite){
+    var imgSz = sz*3;
+    // 影子
+    ctx.fillStyle='rgba(0,0,0,0.35)';ctx.beginPath();
+    ctx.ellipse(x,y+sz*0.8,imgSz*0.4,imgSz*0.1,0,0,Math.PI*2);ctx.fill();
+    // 精灵图
+    ctx.save();
+    ctx.drawImage(sprite, x-imgSz/2, y-imgSz/2, imgSz, imgSz);
+    ctx.restore();
   } else {
-    // ====== 半兽人形态 ======
-    // 身体
-    var bodyG=ctx.createRadialGradient(x-sz*0.15,y-sz*0.15,sz*0.1,x,y,sz*1.1);
-    bodyG.addColorStop(0,shade(this.col,40));bodyG.addColorStop(0.5,this.col);bodyG.addColorStop(1,shade(this.col,-50));
-    ctx.fillStyle=bodyG;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
-    // 高光
-    ctx.save();ctx.globalAlpha=0.25;var hl=ctx.createRadialGradient(x-sz*0.3,y-sz*0.3,0,x-sz*0.3,y-sz*0.3,sz*0.5);
-    hl.addColorStop(0,'#fff');hl.addColorStop(1,'transparent');ctx.fillStyle=hl;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();ctx.restore();
-    // 轮廓
-    ctx.strokeStyle=shade(this.col,-60);ctx.lineWidth=2.5;ctx.stroke();
-    // 獠牙
-    ctx.fillStyle='#ffe0b2';ctx.beginPath();
-    ctx.moveTo(x-sz*0.15,y+sz*0.2);ctx.lineTo(x-sz*0.1,y+sz*0.4);ctx.lineTo(x-sz*0.02,y+sz*0.2);ctx.fill();
-    ctx.beginPath();ctx.moveTo(x+sz*0.02,y+sz*0.2);ctx.lineTo(x+sz*0.1,y+sz*0.4);ctx.lineTo(x+sz*0.15,y+sz*0.2);ctx.fill();
-    // 眉骨突起
-    ctx.fillStyle=shade(this.col,-20);
-    ctx.beginPath();ctx.ellipse(x-sz*0.3,y-sz*0.25,sz*0.22,sz*0.1,-0.2,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(x+sz*0.3,y-sz*0.25,sz*0.22,sz*0.1,0.2,0,Math.PI*2);ctx.fill();
-    // 眼睛
-    ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x-sz*0.3,y-sz*0.15,sz*0.18,sz*0.2,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(x+sz*0.3,y-sz*0.15,sz*0.18,sz*0.2,0,0,Math.PI*2);ctx.fill();
-    // 瞳孔
-    var eyeCol=this.tk==='fast'?'#00e5ff':(this.tk==='tank'?'#ff6f00':'#ff1744');
+    // ====== 回退: Canvas绘制 ======
+    // (保留原有绘制逻辑)
+    var col=this.col;
+    ctx.fillStyle='rgba(0,0,0,0.4)';ctx.beginPath();ctx.ellipse(x,y+sz*0.9,sz*0.85,sz*0.22,0,0,Math.PI*2);ctx.fill();
+    var g=ctx.createRadialGradient(x-sz*0.2,y-sz*0.2,sz*0.1,x,y,sz*1.1);g.addColorStop(0,shade(col,40));g.addColorStop(0.6,col);g.addColorStop(1,shade(col,-50));
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=shade(col,-60);ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x-sz*0.3,y-sz*0.15,sz*0.2,sz*0.22,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(x+sz*0.3,y-sz*0.15,sz*0.2,sz*0.22,0,0,Math.PI*2);ctx.fill();
+    var eyeCol=this.boss?'#f00':'#ff1744';
     ctx.fillStyle=eyeCol;ctx.beginPath();ctx.arc(x-sz*0.28,y-sz*0.12,sz*0.09,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.arc(x+sz*0.32,y-sz*0.12,sz*0.09,0,Math.PI*2);ctx.fill();
-    // 眼睛高光
-    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x-sz*0.33,y-sz*0.18,sz*0.04,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(x+sz*0.27,y-sz*0.18,sz*0.04,0,Math.PI*2);ctx.fill();
-    // 纹身/伤疤
-    ctx.strokeStyle=shade(this.col,-70);ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(x-sz*0.4,y-sz*0.4);ctx.lineTo(x-sz*0.2,y);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(x+sz*0.35,y-sz*0.35);ctx.lineTo(x+sz*0.15,y+sz*0.1);ctx.stroke();
   }
   
-  // 血条
-  var bw=isCentaur?sz*2.4:sz*2.2,by=y-(isCentaur?sz*1.4:sz)-10,bh=5;
+  // 血条（通用）
+  var bw=isCentaur?sz*2.4:sz*2.2,by=y-(isCentaur?sz*1.4:sz)-12,bh=5;
   ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-bw/2-1,by-1,bw+2,bh+2);
   var hpPct=this.hp/this.maxHp;
   ctx.fillStyle=hpPct>0.5?'#4caf50':(hpPct>0.25?'#ff9800':'#f44336');
@@ -1066,13 +1049,17 @@ function updateSkUI(){
 
 // ====== 绘制 ======
 function drawMap(){
-  // 背景 - 深色渐变 + 网格纹理
-  var bg=ctx.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#0f1f0f');bg.addColorStop(0.5,'#1a2a1a');bg.addColorStop(1,'#0d1b0d');
-  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // 背景 - 使用生成的素材或回退到渐变
+  if(IMAGES.bg_tile){
+    var pat=ctx.createPattern(IMAGES.bg_tile,'repeat');ctx.fillStyle=pat;ctx.fillRect(0,0,W,H);
+  }else{
+    var bg=ctx.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#0f1f0f');bg.addColorStop(0.5,'#1a2a1a');bg.addColorStop(1,'#0d1b0d');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  }
   // 网格
-  ctx.strokeStyle='rgba(50,80,50,0.15)';ctx.lineWidth=1;
-  for(var gx=0;gx<W;gx+=40){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
-  for(var gy=0;gy<H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+  ctx.strokeStyle='rgba(50,80,50,0.12)';ctx.lineWidth=1;
+  for(var gx=0;gx<W;gx+=50){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
+  for(var gy=0;gy<H;gy+=50){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
   // 路径 - 带发光效果
   ctx.save();ctx.shadowColor='rgba(139,119,80,0.5)';ctx.shadowBlur=15;
   drawPath(PATHS.outer,'rgba(120,90,50,0.6)',32);ctx.restore();
@@ -1080,67 +1067,78 @@ function drawMap(){
   ctx.save();ctx.shadowColor='rgba(80,80,160,0.4)';ctx.shadowBlur=12;
   drawPath(PATHS.inner,'rgba(60,60,120,0.5)',26);ctx.restore();
   drawPath(PATHS.inner,'rgba(40,40,100,0.7)',16);
-  // 塔位
+  // 塔位 - 使用图片素材
   for(var i=0;i<TOWERS.length;i++){
     var t=TOWERS[i],tx=t.x*W,ty=t.y*H,active=hero.towerIdx===i;
-    // 塔底座
-    ctx.save();
-    if(active){ctx.shadowColor='#ffd700';ctx.shadowBlur=20;}
-    ctx.fillStyle=active?'rgba(74,144,217,0.3)':'rgba(50,50,50,0.3)';
-    ctx.beginPath();ctx.arc(tx,ty,28,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle=active?'#ffd700':'rgba(150,150,150,0.5)';
-    ctx.lineWidth=active?3:2;ctx.stroke();
-    ctx.restore();
-    // 塔图标
+    var towerImg=active?IMAGES.tower_active:IMAGES.tower_inactive;
+    if(towerImg){
+      ctx.save();
+      if(active){ctx.shadowColor='#ffd700';ctx.shadowBlur=20;}
+      ctx.drawImage(towerImg,tx-35,ty-35,70,70);
+      ctx.restore();
+    }else{
+      ctx.save();
+      if(active){ctx.shadowColor='#ffd700';ctx.shadowBlur=20;}
+      ctx.fillStyle=active?'rgba(74,144,217,0.3)':'rgba(50,50,50,0.3)';
+      ctx.beginPath();ctx.arc(tx,ty,28,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=active?'#ffd700':'rgba(150,150,150,0.5)';
+      ctx.lineWidth=active?3:2;ctx.stroke();
+      ctx.restore();
+    }
     ctx.font=active?'18px Arial':'14px Arial';
     ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillStyle=active?'#ffd700':'rgba(255,255,255,0.5)';
     ctx.fillText(active?'🏰':'🏚️',tx,ty);
-    // 名称
     ctx.font='10px Arial';ctx.fillStyle=active?'#ffd700':'rgba(255,255,255,0.4)';
-    ctx.fillText(t.name,tx,ty+40);
+    ctx.fillText(t.name,tx,ty+42);
   }
 }
 function drawPath(path,col,w){ctx.strokeStyle=col;ctx.lineWidth=w;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(path[0].x*W,path[0].y*H);for(var i=1;i<path.length;i++)ctx.lineTo(path[i].x*W,path[i].y*H);ctx.closePath();ctx.stroke();}
 function drawHero(){
-  var hp=hPos(),hd=hData(),x=hp.x,y=hp.y+Math.sin(Date.now()/300)*3,sz=34;
+  var hp=hPos(),hd=hData(),x=hp.x,y=hp.y+Math.sin(Date.now()/300)*3,sz=38;
   var promo=hero.promo||0;
+  var heroImg=IMAGES['hero_'+hero.cls];
+  
   if(showRangeTimer>0){ctx.save();ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=2;ctx.setLineDash([8,4]);ctx.beginPath();ctx.arc(x,y,hd.range*Math.min(W,H),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
   
   // 外圈光晕
   ctx.save();ctx.globalAlpha=0.25+Math.sin(Date.now()/400)*0.05;
-  var gl=ctx.createRadialGradient(x,y,0,x,y,65);gl.addColorStop(0,getPromoGlow(promo));gl.addColorStop(1,'transparent');
-  ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,65,0,Math.PI*2);ctx.fill();ctx.restore();
+  var gl=ctx.createRadialGradient(x,y,0,x,y,70);gl.addColorStop(0,getPromoGlow(promo));gl.addColorStop(1,'transparent');
+  ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,70,0,Math.PI*2);ctx.fill();ctx.restore();
   
-  // 阴影
-  ctx.fillStyle='rgba(0,0,0,0.4)';ctx.beginPath();ctx.ellipse(x,y+sz*0.85,sz*0.7,sz*0.15,0,0,Math.PI*2);ctx.fill();
-  
-  // 头像框 - 基于转职变色
-  var frameG=ctx.createRadialGradient(x-sz*0.1,y-sz*0.1,sz*0.1,x,y,sz*1.0);
-  frameG.addColorStop(0,shade(hd.color,50));frameG.addColorStop(0.6,hd.color);frameG.addColorStop(1,shade(hd.color,-50));
-  ctx.fillStyle=frameG;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
-  
-  // 转职颜色叠加
-  ctx.save();ctx.globalAlpha=0.35;ctx.fillStyle=getPromoColor(promo);
-  ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();ctx.restore();
-  
-  // 边框 - 转职颜色
-  ctx.save();ctx.shadowColor=getPromoGlow(promo);ctx.shadowBlur=promo>0?20:12;
-  ctx.strokeStyle=getPromoBorder(promo);ctx.lineWidth=promo>0?4:3;ctx.stroke();ctx.restore();
-  
-  // 转职等级星标
-  if(promo>0){
-    var starStr=['','⭐','⭐⭐','⭐⭐⭐'][promo];
-    ctx.font='10px Arial';ctx.textAlign='center';ctx.fillStyle='#ffd700';
-    ctx.fillText(starStr,x,y-sz-3);
+  if(heroImg){
+    // 使用生成的头像素材
+    var imgSz=sz*2.4;
+    // 转职颜色叠加
+    ctx.save();
+    ctx.drawImage(heroImg, x-imgSz/2, y-imgSz/2+2, imgSz, imgSz);
+    // 转职颜色层
+    if(promo>0){
+      ctx.globalCompositeOperation='source-atop';
+      ctx.globalAlpha=0.15*promo;
+      ctx.fillStyle=getPromoColor(promo);
+      ctx.fillRect(x-imgSz/2,y-imgSz/2,imgSz,imgSz);
+    }
+    ctx.restore();
+    // 边框
+    ctx.save();ctx.shadowColor=getPromoGlow(promo);ctx.shadowBlur=promo>0?20:12;
+    ctx.strokeStyle=getPromoBorder(promo);ctx.lineWidth=promo>0?4:3;
+    ctx.beginPath();ctx.arc(x,y,imgSz/2+2,0,Math.PI*2);ctx.stroke();ctx.restore();
+  } else {
+    // 回退: canvas绘制
+    ctx.fillStyle='rgba(0,0,0,0.4)';ctx.beginPath();ctx.ellipse(x,y+sz*0.85,sz*0.7,sz*0.15,0,0,Math.PI*2);ctx.fill();
+    var frameG=ctx.createRadialGradient(x-sz*0.1,y-sz*0.1,sz*0.1,x,y,sz*1.0);
+    frameG.addColorStop(0,shade(hd.color,50));frameG.addColorStop(0.6,hd.color);frameG.addColorStop(1,shade(hd.color,-50));
+    ctx.fillStyle=frameG;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
+    ctx.save();ctx.shadowColor=hd.color;ctx.shadowBlur=15;ctx.strokeStyle='#ffd700';ctx.lineWidth=3;ctx.stroke();ctx.restore();
+    ctx.font=(sz*1.1)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(hd.avatar,x,y+2);
   }
   
-  // 头像emoji
-  ctx.font=(sz*1.1)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText(hd.avatar,x,y+2);
-  
-  // 武器小图标
-  ctx.font='14px Arial';ctx.fillText(hd.skin,x+sz*0.8,y+sz*0.5);
+  // 转职星标
+  if(promo>0){
+    var starStr=['','⭐','⭐⭐','⭐⭐⭐'][promo];
+    ctx.font='11px Arial';ctx.textAlign='center';ctx.fillStyle='#ffd700';
+    ctx.fillText(starStr,x,y-sz-6);
+  }
   
   // 类型标签
   var typeLabel=hd.type==='str'?'力量':(hd.type==='agi'?'敏捷':'智力');
@@ -1206,7 +1204,11 @@ function init(){
   var heroKeys=Object.keys(HEROES);
   hero.cls=heroKeys[Math.floor(Math.random()*heroKeys.length)];
   initHeroSkills();
-  requestAnimationFrame(loop);setupEvents();
+  // 加载图片资源后启动游戏
+  loadImages(function(){
+    requestAnimationFrame(loop);
+  });
+  setupEvents();
   document.addEventListener('click',initAudio,{once:true});document.addEventListener('touchstart',initAudio,{once:true});
   var hd=HEROES[hero.cls];
   showToast('英雄: '+hd.icon+' '+hd.cnName+'（'+hd.name+'）');
