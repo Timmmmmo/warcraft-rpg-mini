@@ -216,6 +216,8 @@ function getMpRegen(){
   if(hd.type==='agi') return 1.5;
   return 1.0; // str
 }
+// 智力英雄普攻80%
+function getAtkMult(){var hd=hData();return hd.type==='int'?0.8:1.0;}
 
 // 转职颜色: 0=黑, 1=蓝, 2=浅黄, 3=金
 function getPromoColor(p){
@@ -462,7 +464,7 @@ function Enemy(pk,tk){
   this.boss=tk==='boss';var wm=1+wave*0.1;
   this.hp=(50+wave*12)*type.hpM*wm;this.maxHp=this.hp;
   this.def=3+wave*(this.boss?2:0.8);this.spd=(pk==='inner'?0.004:0.0025)*type.spdM*0.7;
-  this.exp=Math.floor((20+wave*8)*(this.boss?5:1));
+  this.exp=Math.floor((20+wave*8)*(this.boss?5:1)*0.3);
   this.sz=this.boss?0.04:(tk==='elite'?0.028:(tk==='tank'?0.03:0.02));
   this.col=type.col;
 }
@@ -621,7 +623,7 @@ function autoAtk(){
   hero.atkTimer+=0.016;var hd=hData();if(hero.atkTimer<hd.atkSpd)return;hero.atkTimer=0;
   var hp=hPos(),range=hd.range*Math.min(W,H);
   if(dungeonEnemy){
-    var d=Math.max(1,Math.floor(hero.atk*1.5*hero.buff*(hero._atkBonus||1)));
+    var d=Math.max(1,Math.floor(hero.atk*1.5*getAtkMult()*hero.buff*(hero._atkBonus||1)));
     // 法穿: 无视30%护甲
     var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
     dungeonEnemy.hp-=d;addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,'-'+d,'#ffd700',14);playSound('hit');
@@ -631,7 +633,7 @@ function autoAtk(){
   }
   var t=null,md=Infinity;for(var i=0;i<enemies.length;i++){var e=enemies[i],d=dist(hp.x,hp.y,e.x*W,e.y*H);if(d<range&&d<md){md=d;t=e;}}
   if(t){
-    var d=Math.max(1,Math.floor(hero.atk*1.5*hero.buff*(hero._atkBonus||1)-t.def));
+    var d=Math.max(1,Math.floor(hero.atk*1.5*getAtkMult()*hero.buff*(hero._atkBonus||1)-t.def));
     var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
     // 感电: 10%概率额外闪电
     if(hd2.extraPassive&&hd2.extraPassive.indexOf('感电')>=0&&Math.random()<0.1){
@@ -914,12 +916,35 @@ function levelUp(){hero.lv++;hero.expNeed=Math.floor(100*Math.pow(hero.lv,1.15))
 
 function showPromo(){
   state='paused';var modal=document.getElementById('promo-modal'),cards=document.getElementById('promo-cards');cards.innerHTML='';
-  var auto=document.createElement('div');auto.className='card auto';auto.innerHTML='<div class="icon">🎲</div><div class="name">自动+20%</div>';auto.onclick=function(){doPromo(true);};cards.appendChild(auto);
-  var opts=getPromoOpts();for(var i=0;i<opts.length;i++){var o=opts[i],c=document.createElement('div');c.className='card';c.style.borderColor=o.color;c.innerHTML='<div class="icon">'+o.icon+'</div><div class="name">'+o.name+'</div><div class="bonus">+10%</div>';;(function(k){c.onclick=function(){doPromo(false,k);};})(o.key);cards.appendChild(c);}
+  // 自动转职 - 炫酷卡片
+  var auto=document.createElement('div');auto.className='card auto';
+  auto.innerHTML='<div class="icon" style="font-size:48px;">🎲</div><div class="name" style="color:#ff9800;font-size:15px;">随机转职</div><div class="bonus" style="font-size:13px;color:#4caf50;">全属性+10%</div><div class="desc">命运决定你的道路</div>';
+  auto.onclick=function(){doPromo(true);};cards.appendChild(auto);
+  // 手动选择
+  var opts=getPromoOpts();for(var i=0;i<opts.length;i++){
+    var o=opts[i],c=document.createElement('div');c.className='card';c.style.borderColor=o.color;c.style.minWidth='130px';
+    c.innerHTML='<div class="icon" style="font-size:42px;">'+o.icon+'</div>'
+      +'<div class="name" style="color:'+o.color+';font-size:16px;">'+o.cnName+'</div>'
+      +'<div class="desc" style="color:#aaa;font-size:10px;">【'+o.title+'】'+o.name+'</div>'
+      +'<div class="bonus" style="font-size:12px;color:#4caf50;margin-top:4px;">全属性+5%</div>'
+      +'<div class="desc" style="color:'+o.color+';font-size:10px;margin-top:4px;">'+o.skills[1].ic+' '+o.skills[1].name+'</div>'
+      +'<div class="desc" style="font-size:9px;color:#888;">'+(o.extraPassive||'')+'</div>';
+    (function(k){c.onclick=function(){doPromo(false,k);};})(o.key);cards.appendChild(c);
+  }
   modal.classList.add('show');
 }
-function getPromoOpts(){var hd=hData(),o=[];if(hero.promo===0){if(hd.type==='str'){o.push({key:'blademaster',...HEROES.blademaster});o.push({key:'mountainking',...HEROES.mountainking});}else if(hd.type==='agi'){o.push({key:'windrunner',...HEROES.windrunner});o.push({key:'shadowhunter',...HEROES.shadowhunter});}else{o.push({key:'bloodmage',...HEROES.bloodmage});o.push({key:'frost',...HEROES.frost});}}else{if(hd.type==='str')o.push({key:'titan',...HEROES.titan});else if(hd.type==='agi')o.push({key:'gale',...HEROES.gale});else o.push({key:'storm',...HEROES.storm});}return o;}
-function doPromo(auto,key){var b=auto?1.2:1.1;if(auto){var o=getPromoOpts();key=o[Math.floor(Math.random()*o.length)].key;}hero.cls=key;hero.buff*=b;
+function getPromoOpts(){var hd=hData(),o=[],keys=Object.keys(HEROES);
+  // 排除当前职业，随机显示2-3个可选职业
+  var available=keys.filter(function(k){return k!==hero.cls;});
+  // 根据类型偏好选择
+  var sameType=available.filter(function(k){return HEROES[k].type===hd.type;});
+  var diffType=available.filter(function(k){return HEROES[k].type!==hd.type;});
+  if(sameType.length>0)o.push({key:sameType[0],...HEROES[sameType[0]]});
+  if(diffType.length>0)o.push({key:diffType[0],...HEROES[diffType[0]]});
+  if(diffType.length>1)o.push({key:diffType[1],...HEROES[diffType[1]]});
+  return o;
+}
+function doPromo(auto,key){var b=auto?1.1:1.05;if(auto){var o=getPromoOpts();key=o[Math.floor(Math.random()*o.length)].key;}hero.cls=key;hero.buff*=b;
   hero.promo++;
   // 攻击基于转职倍率重新计算
   var baseAtk=30+(hero.lv-1)*4;hero.atk=Math.floor(baseAtk*getPromoAtkMult(hero.promo));
@@ -1133,7 +1158,7 @@ function setupEvents(){
     // 攻击中立怪
     for(var i=0;i<neutrals.length;i++){
       if(neutrals[i].alive&&neutrals[i].hitTest(x,y)){
-        var n=neutrals[i],d=Math.max(1,Math.floor(hero.atk*1.5*hero.buff));
+        var n=neutrals[i],d=Math.max(1,Math.floor(hero.atk*1.5*getAtkMult()*hero.buff));
         n.hp-=d;addP(n.x*W,n.y*H-20,'-'+d,'#fff',14);playSound('hit');
         if(n.hp<=0)n.die();
         return;
