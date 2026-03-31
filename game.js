@@ -142,9 +142,8 @@ var MTYPES = {
 
 // 副本系统 - 重新平衡数值
 var DUNGEONS = [
-  {name:'金币副本',icon:'💰',type:'gold'},
   {name:'经验副本',icon:'⭐',type:'exp'},
-  {name:'Boss挑战',icon:'👹',type:'boss'}
+  {name:'镜像副本',icon:'🪞',type:'boss'}
 ];
 
 // 新版副本数值表（10级全量数据）
@@ -309,7 +308,35 @@ function spawnNeutrals(){
 // ====== 音效 ======
 var audioCtx=null;
 function initAudio(){if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
-function playSound(t){if(!audioCtx)return;try{var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=t==='ult'?200:400;g.gain.value=0.15;g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.15);o.start();o.stop(audioCtx.currentTime+0.15);}catch(e){}}
+function playSound(t){if(!audioCtx)return;try{
+  if(t==='ult'){
+    // 大招音效 - 低沉轰鸣+高频闪光
+    var o1=audioCtx.createOscillator(),g1=audioCtx.createGain();
+    o1.connect(g1);g1.connect(audioCtx.destination);
+    o1.type='sawtooth';o1.frequency.setValueAtTime(150,audioCtx.currentTime);
+    o1.frequency.exponentialRampToValueAtTime(600,audioCtx.currentTime+0.2);
+    g1.gain.value=0.2;g1.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.4);
+    o1.start();o1.stop(audioCtx.currentTime+0.4);
+    var o2=audioCtx.createOscillator(),g2=audioCtx.createGain();
+    o2.connect(g2);g2.connect(audioCtx.destination);
+    o2.type='square';o2.frequency.setValueAtTime(800,audioCtx.currentTime);
+    o2.frequency.exponentialRampToValueAtTime(200,audioCtx.currentTime+0.3);
+    g2.gain.value=0.1;g2.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.3);
+    o2.start();o2.stop(audioCtx.currentTime+0.3);
+  } else if(t==='hit'){
+    var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.type='square';o.frequency.value=300+Math.random()*200;
+    g.gain.value=0.08;g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.08);
+    o.start();o.stop(audioCtx.currentTime+0.08);
+  } else {
+    var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.frequency.value=400;g.gain.value=0.1;
+    g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.15);
+    o.start();o.stop(audioCtx.currentTime+0.15);
+  }
+}catch(e){}}
 
 // ====== 新手教程系统 ======
 var TUTORIAL_STEPS = [
@@ -463,7 +490,7 @@ function Enemy(pk,tk){
   this.x=path[0].x+(Math.random()-0.5)*0.05;this.y=path[0].y+(Math.random()-0.5)*0.05;
   this.boss=tk==='boss';var wm=1+wave*0.1;
   this.hp=(50+wave*12)*type.hpM*wm;this.maxHp=this.hp;
-  this.def=3+wave*(this.boss?2:0.8);this.spd=(pk==='inner'?0.004:0.0025)*type.spdM*0.7;
+  this.def=3+wave*(this.boss?2:0.8);this.spd=(pk==='inner'?0.004:0.0025)*type.spdM*0.5;
   this.exp=Math.floor((20+wave*8)*(this.boss?5:1)*0.21); // 原始的21%（30%*70%）
   this.sz=this.boss?0.04:(tk==='elite'?0.028:(tk==='tank'?0.03:0.02));
   this.col=type.col;
@@ -577,11 +604,26 @@ function DungeonEnemy(d,level){
 }
 DungeonEnemy.prototype.update=function(){return true;};
 DungeonEnemy.prototype.draw=function(){
-  var x=this.x*W,y=this.y*H,sz=this.sz*Math.min(W,H);
-  ctx.save();ctx.shadowColor='#ffd700';ctx.shadowBlur=20;ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();ctx.restore();
-  ctx.font='bold '+(sz*0.8)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(this.dungeon.icon,x,y);
-  ctx.fillStyle='#222';ctx.fillRect(x-40,y-sz-15,80,8);ctx.fillStyle='#ffd700';ctx.fillRect(x-40,y-sz-15,80*(this.hp/this.maxHp),8);
-  ctx.fillStyle=dungeonTimer<5?'#f44336':'#fff';ctx.font='bold 16px Arial';ctx.textAlign='center';ctx.fillText(Math.ceil(dungeonTimer)+'s',x,y+sz+20);
+  // 始终在英雄上方
+  var hp=hPos();var x=hp.x,y=hp.y-60;
+  this.x=x/W;this.y=y/H;
+  var sz=this.sz*Math.min(W,H);
+  // 光晕脉冲
+  ctx.save();var pulse=Math.sin(Date.now()/200)*0.15+0.85;
+  ctx.shadowColor='#ffd700';ctx.shadowBlur=20*pulse;
+  ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();ctx.restore();
+  // 副本怪图标
+  ctx.font='bold '+(sz*1.0)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(this.dungeon.icon,x,y);
+  // 血条
+  ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillRect(x-50,y-sz-18,100,10);
+  var hpPct=this.hp/this.maxHp;
+  ctx.fillStyle=hpPct>0.5?'#ffd700':'#ff5252';ctx.fillRect(x-50,y-sz-18,100*hpPct,10);
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.fillRect(x-50,y-sz-18,100*hpPct,4);
+  // 副本名称
+  ctx.font='bold 12px Arial';ctx.fillStyle='#ffd700';ctx.fillText(this.dungeon.name+' Lv.'+this.level,x,y-sz-26);
+  // 倒计时
+  ctx.fillStyle=dungeonTimer<5?'#f44336':'#fff';ctx.font='bold 18px Arial';
+  ctx.fillText(Math.ceil(dungeonTimer)+'s',x,y+sz+25);
 };
 
 // ====== 粒子 ======
@@ -860,8 +902,12 @@ function showLevelSelect(){
 function enterDungeon(d,level){
   var s=getDungeonStats(d,level);if(gold<s.cost){showToast('金币不足!');return;}
   gold-=s.cost;dungeonActive=d;dungeonEnemy=new DungeonEnemy(d,level);dungeonTimer=s.time;
+  // 英雄回到中心站桩
+  hero.towerIdx=4;moveCd=0;
+  // 副本怪显示在英雄上方
+  dungeonEnemy.x=TOWERS[4].x;dungeonEnemy.y=TOWERS[4].y-0.12;
   document.getElementById('dungeon-modal').classList.remove('show');state='playing';
-  showToast('进入'+d.name+' Lv.'+level+'!');
+  showToast('⚔️ 进入'+d.name+' Lv.'+level+'!');
 }
 
 function completeDungeon(){
