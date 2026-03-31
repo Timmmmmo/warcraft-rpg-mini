@@ -72,7 +72,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
       <div class="item">💰<span class="val" id="gold">0</span></div>
       <div class="item">🌊W<span class="val" id="wave">1</span></div>
       <div class="item">💀<span class="val" id="kills">0</span></div>
-      <div class="item">👹<span class="val" id="enemies">0</span>/100</div>
+      <div class="item">👹<span class="val" id="enemies">0</span>/300</div>
     </div>
     <div class="side">
       <div class="hero-info">
@@ -87,7 +87,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
       </div>
     </div>
     <div class="move-cd" id="move-cd"></div>
-    <div class="mid"><div class="mid-btn" id="btn-dungeon">⚔️ 副本</div></div>
+    <div class="mid"><div class="mid-btn" id="btn-dungeon">⚔️ 副本</div><div class="mid-btn" id="btn-ad" onclick="watchAd()" style="border-color:#4a90d9;">📺 回蓝</div></div>
     <div class="bot">
       <div class="sk on" data-skill="0"><span class="ic">💫</span><span class="nm">小必杀</span></div>
       <div class="sk on" data-skill="1"><span class="ic">⚡</span><span class="nm">大必杀</span></div>
@@ -116,12 +116,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
       <div class="lvl-grid" id="lvl-grid"></div>
     </div>
     <div class="btns">
-      <button id="btn-lvl">选择等级</button>
-      <button id="btn-close-dungeon">关闭</button>
+      <button onclick="document.getElementById('dungeon-modal').classList.remove('show');state='playing';">返回</button>
     </div>
   </div>
   
-  <!-- 新手教程覆盖层 -->
+  <!-- 看广告弹窗 -->
+  <div class="modal" id="ad-modal" style="z-index:300;">
+    <div style="background:#1a1a2e;border:3px solid #4a90d9;border-radius:20px;padding:30px;text-align:center;max-width:280px;">
+      <div style="font-size:48px;margin-bottom:10px;">📺</div>
+      <div style="color:#ffd700;font-size:18px;font-weight:bold;margin-bottom:8px;">观看广告</div>
+      <div style="color:#aaa;font-size:13px;margin-bottom:15px;">恢复全部魔法值</div>
+      <div id="ad-timer" style="font-size:48px;color:#4a90d9;font-weight:bold;">3</div>
+      <div style="color:#666;font-size:11px;margin-top:8px;">秒后恢复...</div>
+    </div>
+  </div>
   <div id="tutorial-overlay" style="display:none;position:fixed;inset:0;z-index:1000;flex-direction:column;align-items:center;justify-content:center;">
     <div style="position:fixed;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(0deg,rgba(0,0,0,0.95),rgba(0,0,0,0.85));border-top:3px solid #ffd700;text-align:center;z-index:1001;animation:fadeInUp 0.3s ease-out;">
       <div id="tut-title" style="color:#ffd700;font-size:20px;font-weight:bold;margin-bottom:10px;text-shadow:0 0 10px rgba(255,215,0,0.5);">⚔️ 欢迎来到魔兽RPG！</div>

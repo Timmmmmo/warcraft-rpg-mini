@@ -216,7 +216,19 @@ function getMpRegen(){
   return 1.0; // str
 }
 
-// 转职时MP上限提升: 0转=200(1大), 1转=300(2大), 2转=450(3大), 3转+=750(5大)
+// 转职颜色: 0=黑, 1=蓝, 2=浅黄, 3=金
+function getPromoColor(p){
+  return ['rgba(40,40,40,0.6)','rgba(30,80,200,0.5)','rgba(220,210,80,0.5)','rgba(255,215,0,0.5)'][Math.min(p,3)];
+}
+function getPromoGlow(p){
+  return ['rgba(80,80,80,0.3)','rgba(50,100,255,0.4)','rgba(255,240,100,0.4)','rgba(255,215,0,0.5)'][Math.min(p,3)];
+}
+function getPromoBorder(p){
+  return ['#666','#4a90d9','#ffe082','#ffd700'][Math.min(p,3)];
+}
+// 转职攻击加成: 每次转职普攻+80%, 同时基础属性大幅提升
+function getPromoAtkMult(p){return [1.0,1.8,3.0,5.0,7.0][Math.min(p,4)];}
+// 转职时MP上限提升: 0转=200(1大), 1转=300(2大), 2转=450(3大), 3转=750(5大)
 function getMpByPromo(p){return [200,300,450,750,750][Math.min(p,4)];}
 
 function initHeroSkills(){
@@ -727,7 +739,31 @@ function useSkill(idx){
   shake=sk.type==='big'?12:6;playSound('ult');updateSkUI();
 }
 
-// ====== 副本系统 ======
+// ====== 看广告回蓝 ======
+var adCooldown=0;
+function watchAd(){
+  if(state!=='playing'){showToast('战斗中才能看广告!');return;}
+  if(adCooldown>0){showToast('冷却中: '+Math.ceil(adCooldown)+'s');return;}
+  if(hero.mp>=hero.maxMp){showToast('蓝量已满!');return;}
+  // 模拟广告 - 3秒倒计时
+  state='paused';
+  var adModal=document.getElementById('ad-modal');
+  var adTimer=3;
+  adModal.classList.add('show');
+  document.getElementById('ad-timer').textContent=adTimer;
+  var adIv=setInterval(function(){
+    adTimer--;
+    document.getElementById('ad-timer').textContent=adTimer;
+    if(adTimer<=0){
+      clearInterval(adIv);
+      adModal.classList.remove('show');
+      hero.mp=hero.maxMp;
+      adCooldown=30; // 30秒冷却
+      state='playing';
+      showToast('✨ 魔法全满!');
+    }
+  },1000);
+}
 function showDungeonMenu(){
   console.log('打开副本菜单');state='paused';selectedDungeon=null;
   var modal=document.getElementById('dungeon-modal'),list=document.getElementById('dungeon-list'),panel=document.getElementById('lvl-panel');
@@ -823,8 +859,13 @@ function showPromo(){
   modal.classList.add('show');
 }
 function getPromoOpts(){var hd=hData(),o=[];if(hero.promo===0){if(hd.type==='str'){o.push({key:'blademaster',...HEROES.blademaster});o.push({key:'mountainking',...HEROES.mountainking});}else if(hd.type==='agi'){o.push({key:'windrunner',...HEROES.windrunner});o.push({key:'shadowhunter',...HEROES.shadowhunter});}else{o.push({key:'bloodmage',...HEROES.bloodmage});o.push({key:'frost',...HEROES.frost});}}else{if(hd.type==='str')o.push({key:'titan',...HEROES.titan});else if(hd.type==='agi')o.push({key:'gale',...HEROES.gale});else o.push({key:'storm',...HEROES.storm});}return o;}
-function doPromo(auto,key){var b=auto?1.2:1.1;if(auto){var o=getPromoOpts();key=o[Math.floor(Math.random()*o.length)].key;}hero.cls=key;hero.buff*=b;hero.atk=Math.floor(hero.atk*b);hero.def=Math.floor(hero.def*b);hero.maxHp=Math.floor(hero.maxHp*b);hero.hp=hero.maxHp;
-  hero.promo++;hero.maxMp=getMpByPromo(hero.promo);hero.mp=hero.maxMp;
+function doPromo(auto,key){var b=auto?1.2:1.1;if(auto){var o=getPromoOpts();key=o[Math.floor(Math.random()*o.length)].key;}hero.cls=key;hero.buff*=b;
+  hero.promo++;
+  // 攻击基于转职倍率重新计算
+  var baseAtk=30+(hero.lv-1)*4;hero.atk=Math.floor(baseAtk*getPromoAtkMult(hero.promo));
+  hero.def=Math.floor(hero.def*b)+hero.promo*5;
+  hero.maxHp=Math.floor(hero.maxHp*b)+hero.promo*50;hero.hp=hero.maxHp;
+  hero.maxMp=getMpByPromo(hero.promo);hero.mp=hero.maxMp;
   initHeroSkills(); // 转职后重新初始化技能
   document.getElementById('promo-modal').classList.remove('show');state='playing';var hp=hPos();addP(hp.x,hp.y-40,'转职:'+HEROES[key].name,'#ffd700',24);playSound('ult');
 }
@@ -910,27 +951,36 @@ function drawMap(){
 function drawPath(path,col,w){ctx.strokeStyle=col;ctx.lineWidth=w;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(path[0].x*W,path[0].y*H);for(var i=1;i<path.length;i++)ctx.lineTo(path[i].x*W,path[i].y*H);ctx.closePath();ctx.stroke();}
 function drawHero(){
   var hp=hPos(),hd=hData(),x=hp.x,y=hp.y+Math.sin(Date.now()/300)*3,sz=34;
+  var promo=hero.promo||0;
   if(showRangeTimer>0){ctx.save();ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=2;ctx.setLineDash([8,4]);ctx.beginPath();ctx.arc(x,y,hd.range*Math.min(W,H),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
   
   // 外圈光晕
-  ctx.save();ctx.globalAlpha=0.2+Math.sin(Date.now()/400)*0.05;
-  var gl=ctx.createRadialGradient(x,y,0,x,y,60);gl.addColorStop(0,hd.color);gl.addColorStop(1,'transparent');
-  ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,60,0,Math.PI*2);ctx.fill();ctx.restore();
+  ctx.save();ctx.globalAlpha=0.25+Math.sin(Date.now()/400)*0.05;
+  var gl=ctx.createRadialGradient(x,y,0,x,y,65);gl.addColorStop(0,getPromoGlow(promo));gl.addColorStop(1,'transparent');
+  ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,65,0,Math.PI*2);ctx.fill();ctx.restore();
   
-  // ====== 头像风格英雄 ======
   // 阴影
   ctx.fillStyle='rgba(0,0,0,0.4)';ctx.beginPath();ctx.ellipse(x,y+sz*0.85,sz*0.7,sz*0.15,0,0,Math.PI*2);ctx.fill();
   
-  // 头像框 - 圆形底座
+  // 头像框 - 基于转职变色
   var frameG=ctx.createRadialGradient(x-sz*0.1,y-sz*0.1,sz*0.1,x,y,sz*1.0);
   frameG.addColorStop(0,shade(hd.color,50));frameG.addColorStop(0.6,hd.color);frameG.addColorStop(1,shade(hd.color,-50));
   ctx.fillStyle=frameG;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
   
-  // 头像框边框 - 发光
-  ctx.save();ctx.shadowColor=hd.color;ctx.shadowBlur=15;
-  ctx.strokeStyle='#ffd700';ctx.lineWidth=3;ctx.stroke();ctx.restore();
-  ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.arc(x,y,sz+3,0,Math.PI*2);ctx.stroke();
+  // 转职颜色叠加
+  ctx.save();ctx.globalAlpha=0.35;ctx.fillStyle=getPromoColor(promo);
+  ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();ctx.restore();
+  
+  // 边框 - 转职颜色
+  ctx.save();ctx.shadowColor=getPromoGlow(promo);ctx.shadowBlur=promo>0?20:12;
+  ctx.strokeStyle=getPromoBorder(promo);ctx.lineWidth=promo>0?4:3;ctx.stroke();ctx.restore();
+  
+  // 转职等级星标
+  if(promo>0){
+    var starStr=['','⭐','⭐⭐','⭐⭐⭐'][promo];
+    ctx.font='10px Arial';ctx.textAlign='center';ctx.fillStyle='#ffd700';
+    ctx.fillText(starStr,x,y-sz-3);
+  }
   
   // 头像emoji
   ctx.font=(sz*1.1)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
@@ -974,7 +1024,7 @@ function draw(){
 
 // ====== 主循环 ======
 function update(){
-  if(state!=='playing')return;if(moveCd>0)moveCd-=0.016;if(showRangeTimer>0)showRangeTimer--;
+  if(state!=='playing')return;if(moveCd>0)moveCd-=0.016;if(showRangeTimer>0)showRangeTimer--;if(adCooldown>0)adCooldown-=0.016;
   if(hero.hp>0)autoAtk();if(hero.mp<hero.maxMp)hero.mp+=getMpRegen()/60;for(var i=0;i<hero.skills.length;i++)if(hero.skills[i].cd>0)hero.skills[i].cd-=0.016;
   for(var i=enemies.length-1;i>=0;i--){enemies[i].update();if(enemies[i].hp<=0){kills++;gold+=enemies[i].boss?60:8;gainExp(enemies[i].exp);playSound('ult');
     // 被动: 燃魂 - 击杀恢复HP和MP
