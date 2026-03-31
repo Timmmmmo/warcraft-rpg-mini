@@ -17,105 +17,115 @@ var PATHS = {
   outer: [{x:0.08,y:0.09},{x:0.92,y:0.09},{x:0.92,y:0.91},{x:0.08,y:0.91},{x:0.08,y:0.09}]
 };
 
-// 职业 - 10位英雄，每位独特大小必杀
+// 职业 - 10位英雄，古代人物风格头像 + 独特被动
 var HEROES = {
   warrior: {
-    name:'战士',cnName:'铁山',icon:'⚔️',color:'#ff1744',skin:'🗡️',range:0.48,type:'str',atkSpd:0.9,ultCd:25,
-    passive:'15%眩晕',
+    name:'战士',cnName:'铁山',title:'破军',
+    icon:'⚔️',avatar:'👨‍🦲',color:'#ff1744',skin:'🗡️',range:0.48,type:'str',atkSpd:0.9,ultCd:18,
+    passive:'15%眩晕',extraPassive:'不屈：HP低于30%时攻击力+50%',
     skills:[
-      {name:'裂地击',ic:'💥',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'裂地击',ic:'💥',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'earth_split',desc:'重击地面，裂缝扩散'},
-      {name:'旋风斩',ic:'🌪️',cd:0,maxCd:20,dmg:4.5,aoe:0.8,type:'big',cost:25,
+      {name:'旋风斩',ic:'🌪️',cd:0,maxCd:18,dmg:4.5,aoe:0.8,type:'big',cost:150,
        fx:'spin',desc:'360°旋风斩，超高AOE'}
     ]
   },
   archer: {
-    name:'弓手',cnName:'凌风',icon:'🏹',color:'#2979ff',skin:'🎯',range:0.48,type:'agi',atkSpd:0.45,ultCd:22,
-    passive:'20%双倍',
+    name:'弓手',cnName:'凌风',title:'飞将',
+    icon:'🏹',avatar:'🧝',color:'#2979ff',skin:'🎯',range:0.48,type:'agi',atkSpd:0.45,ultCd:18,
+    passive:'20%双倍',extraPassive:'鹰眼：暴击率+15%，暴击伤害+50%',
     skills:[
-      {name:'穿云箭',ic:'➹',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'穿云箭',ic:'➹',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'pierce',desc:'一箭穿云，贯穿直线'},
-      {name:'箭雨',ic:'🌧️',cd:0,maxCd:18,dmg:3.0,aoe:1.0,type:'big',cost:22,
+      {name:'箭雨',ic:'🌧️',cd:0,maxCd:18,dmg:3.0,aoe:1.0,type:'big',cost:150,
        fx:'rain',desc:'箭雨覆盖全场，持续伤害'}
     ]
   },
   mage: {
-    name:'法师',cnName:'星落',icon:'🔮',color:'#ffd600',skin:'✨',range:0.48,type:'int',atkSpd:0.7,ultCd:12,
-    passive:'普攻减速',
+    name:'法师',cnName:'星落',title:'天机',
+    icon:'🔮',avatar:'🧙',color:'#ffd600',skin:'✨',range:0.48,type:'int',atkSpd:0.7,ultCd:18,
+    passive:'普攻减速',extraPassive:'法穿：无视敌人30%护甲',
     skills:[
-      {name:'奥术爆破',ic:'💜',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'奥术爆破',ic:'💜',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'arcane',desc:'奥术能量炸裂'},
-      {name:'陨石雨',ic:'☄️',cd:0,maxCd:22,dmg:5.5,aoe:0.7,type:'big',cost:28,
+      {name:'陨石雨',ic:'☄️',cd:0,maxCd:18,dmg:5.5,aoe:0.7,type:'big',cost:150,
        fx:'meteor',desc:'陨石从天而降，毁灭性打击'}
     ]
   },
   blademaster: {
-    name:'剑圣',cnName:'残月',icon:'⚔️',color:'#ff5252',skin:'🗡️',range:0.48,type:'str',atkSpd:0.85,ultCd:22,
-    passive:'15%眩晕',
+    name:'剑圣',cnName:'残月',title:'无极',
+    icon:'⚔️',avatar:'🥷',color:'#ff5252',skin:'🗡️',range:0.48,type:'str',atkSpd:0.85,ultCd:18,
+    passive:'15%眩晕',extraPassive:'剑意：每击杀一个敌人攻击力+1（上限50）',
     skills:[
-      {name:'瞬斩',ic:'⚡',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'瞬斩',ic:'⚡',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'slash',desc:'瞬间出剑，十字斩击'},
-      {name:'剑刃风暴',ic:'🌀',cd:0,maxCd:18,dmg:5.0,aoe:0.65,type:'big',cost:24,
+      {name:'剑刃风暴',ic:'🌀',cd:0,maxCd:18,dmg:5.0,aoe:0.65,type:'big',cost:150,
        fx:'bladestorm',desc:'化身风暴，斩灭一切'}
     ]
   },
   mountainking: {
-    name:'山丘',cnName:'磐石',icon:'🛡️',color:'#ffd700',skin:'🔨',range:0.48,type:'str',atkSpd:1.0,ultCd:28,
-    passive:'15%眩晕',
+    name:'山丘',cnName:'磐石',title:'镇岳',
+    icon:'🛡️',avatar:'🧔',color:'#ffd700',skin:'🔨',range:0.48,type:'str',atkSpd:1.0,ultCd:18,
+    passive:'15%眩晕',extraPassive:'磐体：受到伤害减少20%，反弹10%伤害',
     skills:[
-      {name:'地震波',ic:'🌋',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'地震波',ic:'🌋',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'quake',desc:'震地冲击波扩散'},
-      {name:'雷霆一击',ic:'⚡',cd:0,maxCd:25,dmg:6.0,aoe:0.6,type:'big',cost:28,
+      {name:'雷霆一击',ic:'⚡',cd:0,maxCd:18,dmg:6.0,aoe:0.6,type:'big',cost:150,
        fx:'thunder',desc:'雷霆震地，眩晕全场'}
     ]
   },
   windrunner: {
-    name:'风行',cnName:'逐影',icon:'💨',color:'#00e676',skin:'💨',range:0.48,type:'agi',atkSpd:0.4,ultCd:20,
-    passive:'20%双倍',
+    name:'风行',cnName:'逐影',title:'踏风',
+    icon:'💨',avatar:'🏃',color:'#00e676',skin:'💨',range:0.48,type:'agi',atkSpd:0.4,ultCd:18,
+    passive:'20%双倍',extraPassive:'疾步：攻击速度+25%，移动冷却-50%',
     skills:[
-      {name:'疾风刺',ic:'🗡️',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'疾风刺',ic:'🗡️',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'gale_stab',desc:'疾风突刺，快速连击'},
-      {name:'精准射击',ic:'🎯',cd:0,maxCd:15,dmg:8.0,aoe:0.15,type:'big',cost:18,
+      {name:'精准射击',ic:'🎯',cd:0,maxCd:18,dmg:8.0,aoe:0.15,type:'big',cost:150,
        fx:'snipe',desc:'一击必杀，超高单体伤害'}
     ]
   },
   shadowhunter: {
-    name:'暗猎',cnName:'幽冥',icon:'🌑',color:'#7b1fa2',skin:'🗡️',range:0.48,type:'agi',atkSpd:0.35,ultCd:18,
-    passive:'25%双倍',
+    name:'暗猎',cnName:'幽冥',title:'噬魂',
+    icon:'🌑',avatar:'🧛',color:'#7b1fa2',skin:'🗡️',range:0.48,type:'agi',atkSpd:0.35,ultCd:18,
+    passive:'25%双倍',extraPassive:'吸血：造成伤害的15%转化为生命',
     skills:[
-      {name:'暗影突袭',ic:'👁️',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'暗影突袭',ic:'👁️',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'shadow_strike',desc:'暗影中突袭，诅咒敌人'},
-      {name:'毒蛇陷阱',ic:'🐍',cd:0,maxCd:20,dmg:3.5,aoe:0.85,type:'big',cost:22,
+      {name:'毒蛇陷阱',ic:'🐍',cd:0,maxCd:18,dmg:3.5,aoe:0.85,type:'big',cost:150,
        fx:'poison',desc:'毒雾弥漫，持续毒伤'}
     ]
   },
   frost: {
-    name:'冰法',cnName:'霜语',icon:'❄️',color:'#4fc3f7',skin:'❄️',range:0.48,type:'int',atkSpd:0.75,ultCd:11,
-    passive:'普攻减速',
+    name:'冰法',cnName:'霜语',title:'玄冰',
+    icon:'❄️',avatar:'🧝‍♀️',color:'#4fc3f7',skin:'❄️',range:0.48,type:'int',atkSpd:0.75,ultCd:18,
+    passive:'普攻减速',extraPassive:'冰心：被攻击时20%概率冻结敌人2秒',
     skills:[
-      {name:'冰锥术',ic:'🧊',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'冰锥术',ic:'🧊',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'ice_bolt',desc:'冰锥散射，冻伤敌人'},
-      {name:'冰封领域',ic:'❄️',cd:0,maxCd:20,dmg:3.0,aoe:0.9,type:'big',cost:25,
+      {name:'冰封领域',ic:'❄️',cd:0,maxCd:18,dmg:3.0,aoe:0.9,type:'big',cost:150,
        fx:'frost',desc:'冰封全场，减速+持续伤害'}
     ]
   },
   bloodmage: {
-    name:'血法',cnName:'赤焰',icon:'🔥',color:'#d32f2f',skin:'🔥',range:0.48,type:'int',atkSpd:0.65,ultCd:10,
-    passive:'普攻减速',
+    name:'血法',cnName:'赤焰',title:'焚天',
+    icon:'🔥',avatar:'👹',color:'#d32f2f',skin:'🔥',range:0.48,type:'int',atkSpd:0.65,ultCd:18,
+    passive:'普攻减速',extraPassive:'燃魂：击杀敌人恢复10点HP和5点MP',
     skills:[
-      {name:'火球术',ic:'🔥',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'火球术',ic:'🔥',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'fireball',desc:'火球爆裂，灼烧范围'},
-      {name:'烈焰之柱',ic:'🌋',cd:0,maxCd:16,dmg:4.0,aoe:0.75,type:'big',cost:20,
+      {name:'烈焰之柱',ic:'🌋',cd:0,maxCd:18,dmg:4.0,aoe:0.75,type:'big',cost:150,
        fx:'flame',desc:'地火喷涌，焚尽万物'}
     ]
   },
   storm: {
-    name:'雷法',cnName:'雷泽',icon:'⚡',color:'#7c4dff',skin:'⚡',range:0.48,type:'int',atkSpd:0.6,ultCd:8,
-    passive:'普攻减速',
+    name:'雷法',cnName:'雷泽',title:'天罚',
+    icon:'⚡',avatar:'🧙‍♂️',color:'#7c4dff',skin:'⚡',range:0.48,type:'int',atkSpd:0.6,ultCd:18,
+    passive:'普攻减速',extraPassive:'感电：攻击有10%概率触发额外闪电伤害',
     skills:[
-      {name:'电弧闪',ic:'⚡',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+      {name:'电弧闪',ic:'⚡',cd:0,maxCd:7,dmg:3.75,aoe:0.506,type:'small',cost:75,
        fx:'arc',desc:'电弧跳跃，连锁打击'},
-      {name:'连锁闪电',ic:'⚡',cd:0,maxCd:14,dmg:4.5,aoe:0.85,type:'big',cost:22,
+      {name:'连锁闪电',ic:'⚡',cd:0,maxCd:18,dmg:4.5,aoe:0.85,type:'big',cost:150,
        fx:'chain',desc:'闪电链弹射，连锁打击'}
     ]
   }
@@ -193,10 +203,21 @@ var selectedDungeon = null;
 // 英雄
 var hero = {
   cls:'warrior',towerIdx:4,lv:1,exp:0,expNeed:100,
-  hp:150,maxHp:150,mp:80,maxMp:80,atk:30,def:8,atkTimer:0,
+  hp:150,maxHp:150,mp:200,maxMp:200,atk:30,def:8,atkTimer:0,
   crit:0.1,critDmg:2.0,promo:0,buff:1.0,
-  skills: null // 会在 initHeroSkills 中根据职业填充
+  killStacks:0, // 剑意叠加
+  skills: null
 };
+
+function getMpRegen(){
+  var hd=hData();
+  if(hd.type==='int') return 2.0;
+  if(hd.type==='agi') return 1.5;
+  return 1.0; // str
+}
+
+// 转职时MP上限提升: 0转=200(1大), 1转=300(2大), 2转=450(3大), 3转+=750(5大)
+function getMpByPromo(p){return [200,300,450,750,750][Math.min(p,4)];}
 
 function initHeroSkills(){
   var hd = HEROES[hero.cls] || HEROES.warrior;
@@ -527,9 +548,27 @@ function showToast(t){var e=document.getElementById('toast');e.textContent=t;e.s
 function autoAtk(){
   hero.atkTimer+=0.016;var hd=hData();if(hero.atkTimer<hd.atkSpd)return;hero.atkTimer=0;
   var hp=hPos(),range=hd.range*Math.min(W,H);
-  if(dungeonEnemy){var d=Math.max(1,Math.floor(hero.atk*hero.buff));dungeonEnemy.hp-=d;addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,'-'+d,'#ffd700',14);playSound('hit');if(dungeonEnemy.hp<=0)completeDungeon();return;}
+  if(dungeonEnemy){
+    var d=Math.max(1,Math.floor(hero.atk*1.5*hero.buff*(hero._atkBonus||1)));
+    // 法穿: 无视30%护甲
+    var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
+    dungeonEnemy.hp-=d;addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,'-'+d,'#ffd700',14);playSound('hit');
+    // 吸血
+    if(hd2.extraPassive&&hd2.extraPassive.indexOf('吸血')>=0){hero.hp=Math.min(hero.maxHp,hero.hp+Math.floor(d*0.15));}
+    if(dungeonEnemy.hp<=0)completeDungeon();return;
+  }
   var t=null,md=Infinity;for(var i=0;i<enemies.length;i++){var e=enemies[i],d=dist(hp.x,hp.y,e.x*W,e.y*H);if(d<range&&d<md){md=d;t=e;}}
-  if(t){var d=Math.max(1,Math.floor(hero.atk*hero.buff-t.def));t.hp-=d;addP(t.x*W,t.y*H-15,'-'+d,hd.color,12);playSound('hit');}
+  if(t){
+    var d=Math.max(1,Math.floor(hero.atk*1.5*hero.buff*(hero._atkBonus||1)-t.def));
+    var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
+    // 感电: 10%概率额外闪电
+    if(hd2.extraPassive&&hd2.extraPassive.indexOf('感电')>=0&&Math.random()<0.1){
+      d=Math.floor(d*1.5);addP(t.x*W,t.y*H-25,'⚡','#7c4dff',18);
+    }
+    t.hp-=d;addP(t.x*W,t.y*H-15,'-'+d,hd.color,12);playSound('hit');
+    // 吸血
+    if(hd2.extraPassive&&hd2.extraPassive.indexOf('吸血')>=0){hero.hp=Math.min(hero.maxHp,hero.hp+Math.floor(d*0.15));}
+  }
 }
 
 // ====== 技能释放（10种独特特效） ======
@@ -770,7 +809,9 @@ function selectHero(key){
 
 // ====== 升级转职 ======
 function gainExp(a){hero.exp+=a;while(hero.exp>=hero.expNeed){hero.exp-=hero.expNeed;levelUp();}}
-function levelUp(){hero.lv++;hero.expNeed=Math.floor(100*Math.pow(hero.lv,1.15));hero.maxHp+=25;hero.hp=hero.maxHp;hero.maxMp+=12;hero.mp=hero.maxMp;hero.atk+=4;hero.def+=2;
+function levelUp(){hero.lv++;hero.expNeed=Math.floor(100*Math.pow(hero.lv,1.15));hero.maxHp+=25;hero.hp=hero.maxHp;hero.atk+=4;hero.def+=2;
+  var hd=hData();if(hd.extraPassive&&hd.extraPassive.indexOf('剑意')>=0){hero.atk+=1;hero.killStacks=Math.min((hero.killStacks||0)+1,50);}
+  var hp=hPos();addP(hp.x,hp.y-35,'LEVEL UP!','#ffd700',20);playSound('ult');
   var hp=hPos();addP(hp.x,hp.y-35,'LEVEL UP!','#ffd700',20);playSound('ult');
   if(hero.lv===5&&hero.promo===0)showPromo();if(hero.lv===10&&hero.promo===1)showPromo();
 }
@@ -782,7 +823,8 @@ function showPromo(){
   modal.classList.add('show');
 }
 function getPromoOpts(){var hd=hData(),o=[];if(hero.promo===0){if(hd.type==='str'){o.push({key:'blademaster',...HEROES.blademaster});o.push({key:'mountainking',...HEROES.mountainking});}else if(hd.type==='agi'){o.push({key:'windrunner',...HEROES.windrunner});o.push({key:'shadowhunter',...HEROES.shadowhunter});}else{o.push({key:'bloodmage',...HEROES.bloodmage});o.push({key:'frost',...HEROES.frost});}}else{if(hd.type==='str')o.push({key:'titan',...HEROES.titan});else if(hd.type==='agi')o.push({key:'gale',...HEROES.gale});else o.push({key:'storm',...HEROES.storm});}return o;}
-function doPromo(auto,key){var b=auto?1.2:1.1;if(auto){var o=getPromoOpts();key=o[Math.floor(Math.random()*o.length)].key;}hero.cls=key;hero.buff*=b;hero.atk=Math.floor(hero.atk*b);hero.def=Math.floor(hero.def*b);hero.maxHp=Math.floor(hero.maxHp*b);hero.hp=hero.maxHp;hero.maxMp=Math.floor(hero.maxMp*b);hero.mp=hero.maxMp;hero.promo++;
+function doPromo(auto,key){var b=auto?1.2:1.1;if(auto){var o=getPromoOpts();key=o[Math.floor(Math.random()*o.length)].key;}hero.cls=key;hero.buff*=b;hero.atk=Math.floor(hero.atk*b);hero.def=Math.floor(hero.def*b);hero.maxHp=Math.floor(hero.maxHp*b);hero.hp=hero.maxHp;
+  hero.promo++;hero.maxMp=getMpByPromo(hero.promo);hero.mp=hero.maxMp;
   initHeroSkills(); // 转职后重新初始化技能
   document.getElementById('promo-modal').classList.remove('show');state='playing';var hp=hPos();addP(hp.x,hp.y-40,'转职:'+HEROES[key].name,'#ffd700',24);playSound('ult');
 }
@@ -804,8 +846,13 @@ function updateUI(){
   document.getElementById('gold').textContent=gold;document.getElementById('wave').textContent=wave;
   document.getElementById('kills').textContent=kills;document.getElementById('enemies').textContent=enemies.length;
   document.getElementById('enemies').style.color=enemies.length>250?'#f44336':enemies.length>200?'#ff9800':'#ffd700';
-  var hd=hData();document.getElementById('class-skin').textContent=hd.skin;document.getElementById('class-name').textContent=hd.cnName;
-  document.getElementById('class-sub').textContent='('+hd.name+')';
+  var hd=hData();document.getElementById('class-skin').textContent=hd.avatar;document.getElementById('class-name').textContent=hd.cnName;
+  document.getElementById('class-sub').textContent='【'+hd.title+'】'+hd.name;
+  document.getElementById('passive-skill').textContent=hd.extraPassive||'';
+  // 不屈被动: HP<30%时攻击+50%
+  var atkBonus=1;
+  if(hd.extraPassive&&hd.extraPassive.indexOf('不屈')>=0&&hero.hp<hero.maxHp*0.3)atkBonus=1.5;
+  hero._atkBonus=atkBonus;
   document.getElementById('hp-bar').style.width=(hero.hp/hero.maxHp*100)+'%';
   document.getElementById('mp-bar').style.width=(hero.mp/hero.maxMp*100)+'%';
   document.getElementById('exp-bar').style.width=(hero.exp/hero.expNeed*100)+'%';
@@ -862,108 +909,60 @@ function drawMap(){
 }
 function drawPath(path,col,w){ctx.strokeStyle=col;ctx.lineWidth=w;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(path[0].x*W,path[0].y*H);for(var i=1;i<path.length;i++)ctx.lineTo(path[i].x*W,path[i].y*H);ctx.closePath();ctx.stroke();}
 function drawHero(){
-  var hp=hPos(),hd=hData(),x=hp.x,y=hp.y+Math.sin(Date.now()/300)*3,sz=30;
+  var hp=hPos(),hd=hData(),x=hp.x,y=hp.y+Math.sin(Date.now()/300)*3,sz=34;
   if(showRangeTimer>0){ctx.save();ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=2;ctx.setLineDash([8,4]);ctx.beginPath();ctx.arc(x,y,hd.range*Math.min(W,H),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
   
   // 外圈光晕
   ctx.save();ctx.globalAlpha=0.2+Math.sin(Date.now()/400)*0.05;
-  var gl=ctx.createRadialGradient(x,y,0,x,y,55);gl.addColorStop(0,hd.color);gl.addColorStop(1,'transparent');
-  ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,55,0,Math.PI*2);ctx.fill();ctx.restore();
+  var gl=ctx.createRadialGradient(x,y,0,x,y,60);gl.addColorStop(0,hd.color);gl.addColorStop(1,'transparent');
+  ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,60,0,Math.PI*2);ctx.fill();ctx.restore();
   
-  // ====== 人形英雄绘制 ======
+  // ====== 头像风格英雄 ======
   // 阴影
-  ctx.fillStyle='rgba(0,0,0,0.4)';ctx.beginPath();ctx.ellipse(x,y+sz*1.2,sz*0.7,sz*0.18,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.4)';ctx.beginPath();ctx.ellipse(x,y+sz*0.85,sz*0.7,sz*0.15,0,0,Math.PI*2);ctx.fill();
   
-  // 腿
-  ctx.strokeStyle=shade(hd.color,-30);ctx.lineWidth=sz*0.2;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(x-sz*0.2,y+sz*0.4);ctx.lineTo(x-sz*0.25,y+sz*1.1);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(x+sz*0.2,y+sz*0.4);ctx.lineTo(x+sz*0.25,y+sz*1.1);ctx.stroke();
-  // 靴子
-  ctx.fillStyle=shade(hd.color,-50);
-  ctx.fillRect(x-sz*0.35,y+sz*0.95,sz*0.22,sz*0.15);
-  ctx.fillRect(x+sz*0.13,y+sz*0.95,sz*0.22,sz*0.15);
+  // 头像框 - 圆形底座
+  var frameG=ctx.createRadialGradient(x-sz*0.1,y-sz*0.1,sz*0.1,x,y,sz*1.0);
+  frameG.addColorStop(0,shade(hd.color,50));frameG.addColorStop(0.6,hd.color);frameG.addColorStop(1,shade(hd.color,-50));
+  ctx.fillStyle=frameG;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
   
-  // 身体（盔甲）
-  var bodyG=ctx.createLinearGradient(x,y-sz*0.3,x,y+sz*0.6);
-  bodyG.addColorStop(0,shade(hd.color,30));bodyG.addColorStop(0.5,hd.color);bodyG.addColorStop(1,shade(hd.color,-30));
-  ctx.fillStyle=bodyG;
-  ctx.beginPath();
-  ctx.moveTo(x-sz*0.35,y-sz*0.1);ctx.lineTo(x-sz*0.3,y-sz*0.4);
-  ctx.quadraticCurveTo(x,y-sz*0.5,x+sz*0.3,y-sz*0.4);
-  ctx.lineTo(x+sz*0.35,y-sz*0.1);ctx.lineTo(x+sz*0.3,y+sz*0.5);
-  ctx.lineTo(x-sz*0.3,y+sz*0.5);ctx.closePath();ctx.fill();
-  // 盔甲轮廓
-  ctx.strokeStyle=shade(hd.color,-50);ctx.lineWidth=1.5;ctx.stroke();
-  // 胸甲纹路
-  ctx.strokeStyle=shade(hd.color,20);ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(x,y-sz*0.35);ctx.lineTo(x,y+sz*0.3);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(x-sz*0.25,y-sz*0.05);ctx.lineTo(x+sz*0.25,y-sz*0.05);ctx.stroke();
+  // 头像框边框 - 发光
+  ctx.save();ctx.shadowColor=hd.color;ctx.shadowBlur=15;
+  ctx.strokeStyle='#ffd700';ctx.lineWidth=3;ctx.stroke();ctx.restore();
+  ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(x,y,sz+3,0,Math.PI*2);ctx.stroke();
   
-  // 肩甲
-  ctx.fillStyle=shade(hd.color,-20);
-  ctx.beginPath();ctx.ellipse(x-sz*0.4,y-sz*0.3,sz*0.18,sz*0.12,-0.3,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.ellipse(x+sz*0.4,y-sz*0.3,sz*0.18,sz*0.12,0.3,0,Math.PI*2);ctx.fill();
+  // 头像emoji
+  ctx.font=(sz*1.1)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(hd.avatar,x,y+2);
   
-  // 手臂 + 武器
-  ctx.strokeStyle=shade(hd.color,-20);ctx.lineWidth=sz*0.15;ctx.lineCap='round';
-  // 左臂
-  ctx.beginPath();ctx.moveTo(x-sz*0.35,y-sz*0.2);ctx.lineTo(x-sz*0.55,y+sz*0.1);ctx.stroke();
-  // 右臂（持武器）
-  ctx.beginPath();ctx.moveTo(x+sz*0.35,y-sz*0.2);ctx.lineTo(x+sz*0.6,y-sz*0.1);ctx.stroke();
-  // 武器
-  ctx.font=sz*0.7+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText(hd.skin,x+sz*0.65,y-sz*0.15);
-  
-  // 脖子
-  ctx.fillStyle='#d4a574';ctx.fillRect(x-sz*0.1,y-sz*0.5,sz*0.2,sz*0.12);
-  
-  // 头
-  var headG=ctx.createRadialGradient(x-sz*0.05,y-sz*0.7,0,x,y-sz*0.65,sz*0.28);
-  headG.addColorStop(0,'#ffe0b2');headG.addColorStop(1,'#d4a574');
-  ctx.fillStyle=headG;ctx.beginPath();ctx.arc(x,y-sz*0.65,sz*0.25,0,Math.PI*2);ctx.fill();
-  
-  // 头发/头盔
-  ctx.fillStyle=shade(hd.color,-40);
-  ctx.beginPath();ctx.arc(x,y-sz*0.72,sz*0.25,Math.PI,0);ctx.fill();
-  // 头盔装饰
-  ctx.fillStyle=hd.color;ctx.beginPath();
-  ctx.moveTo(x-sz*0.05,y-sz*0.95);ctx.lineTo(x,y-sz*1.15);ctx.lineTo(x+sz*0.05,y-sz*0.95);ctx.fill();
-  
-  // 眼睛
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x-sz*0.1,y-sz*0.65,sz*0.06,sz*0.07,0,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.ellipse(x+sz*0.1,y-sz*0.65,sz*0.06,sz*0.07,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#333';ctx.beginPath();ctx.arc(x-sz*0.09,y-sz*0.64,sz*0.035,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(x+sz*0.11,y-sz*0.64,sz*0.035,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x-sz*0.11,y-sz*0.67,sz*0.015,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(x+sz*0.09,y-sz*0.67,sz*0.015,0,Math.PI*2);ctx.fill();
-  
-  // 嘴巴
-  ctx.strokeStyle='#a0705a';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(x,y-sz*0.55,sz*0.06,0.15*Math.PI,0.85*Math.PI);ctx.stroke();
+  // 武器小图标
+  ctx.font='14px Arial';ctx.fillText(hd.skin,x+sz*0.8,y+sz*0.5);
   
   // 类型标签
   var typeLabel=hd.type==='str'?'力量':(hd.type==='agi'?'敏捷':'智力');
   var typeColor=hd.type==='str'?'#ff1744':(hd.type==='agi'?'#2979ff':'#ffd600');
-  ctx.font='bold 10px Arial';ctx.textAlign='center';
-  ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillText('['+typeLabel+']',x+1,y-sz*1.2+1);
-  ctx.fillStyle=typeColor;ctx.fillText('['+typeLabel+']',x,y-sz*1.2);
+  ctx.font='bold 9px Arial';ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillText('['+typeLabel+']',x+1,y-sz-14+1);
+  ctx.fillStyle=typeColor;ctx.fillText('['+typeLabel+']',x,y-sz-14);
   
-  // 名字 - 使用中文名
-  ctx.font='bold 12px Arial';
-  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillText(hd.cnName+' Lv.'+hero.lv,x+1,y+sz*1.35+1);
-  ctx.fillStyle=hd.color;ctx.fillText(hd.cnName+' Lv.'+hero.lv,x,y+sz*1.35);
-  // 职业名
-  ctx.font='9px Arial';ctx.fillStyle='rgba(170,170,170,0.8)';ctx.fillText('('+hd.name+')',x,y+sz*1.5);
+  // 名字 - 中文名
+  ctx.font='bold 13px Arial';
+  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillText(hd.cnName+' Lv.'+hero.lv,x+1,y+sz+19+1);
+  ctx.fillStyle='#ffd700';ctx.fillText(hd.cnName+' Lv.'+hero.lv,x,y+sz+19);
+  // 称号
+  ctx.font='10px Arial';ctx.fillStyle=hd.color;ctx.fillText('【'+hd.title+'】',x,y+sz+32);
   
   // 血条
-  var bw=52,bh=6;
-  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-bw/2-1,y-sz*1.05-1,bw+2,bh+2);
+  var bw=56,bh=6;
+  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-bw/2-1,y+sz+38,bw+2,bh+2);
   var hpPct=hero.hp/hero.maxHp;
-  var hpColor=hpPct>0.5?'#4caf50':(hpPct>0.25?'#ff9800':'#f44336');
-  ctx.fillStyle=hpColor;ctx.fillRect(x-bw/2,y-sz*1.05,bw*hpPct,bh);
-  ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillRect(x-bw/2,y-sz*1.05,bw*hpPct,bh*0.35);
+  ctx.fillStyle=hpPct>0.5?'#4caf50':(hpPct>0.25?'#ff9800':'#f44336');
+  ctx.fillRect(x-bw/2,y+sz+39,bw*hpPct,bh);
+  ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillRect(x-bw/2,y+sz+39,bw*hpPct,bh*0.35);
   // 蓝条
-  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-bw/2-1,y-sz*1.05+bh+2,bw+2,4);
-  ctx.fillStyle='#2196f3';ctx.fillRect(x-bw/2,y-sz*1.05+bh+3,bw*(hero.mp/hero.maxMp),3);
+  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-bw/2-1,y+sz+47,bw+2,4);
+  ctx.fillStyle='#2196f3';ctx.fillRect(x-bw/2,y+sz+48,bw*(hero.mp/hero.maxMp),3);
 }
 
 function draw(){
@@ -976,8 +975,12 @@ function draw(){
 // ====== 主循环 ======
 function update(){
   if(state!=='playing')return;if(moveCd>0)moveCd-=0.016;if(showRangeTimer>0)showRangeTimer--;
-  if(hero.hp>0)autoAtk();if(hero.mp<hero.maxMp)hero.mp+=0.06;for(var i=0;i<hero.skills.length;i++)if(hero.skills[i].cd>0)hero.skills[i].cd-=0.016;
+  if(hero.hp>0)autoAtk();if(hero.mp<hero.maxMp)hero.mp+=getMpRegen()/60;for(var i=0;i<hero.skills.length;i++)if(hero.skills[i].cd>0)hero.skills[i].cd-=0.016;
   for(var i=enemies.length-1;i>=0;i--){enemies[i].update();if(enemies[i].hp<=0){kills++;gold+=enemies[i].boss?60:8;gainExp(enemies[i].exp);playSound('ult');
+    // 被动: 燃魂 - 击杀恢复HP和MP
+    var hd=hData();if(hd.extraPassive&&hd.extraPassive.indexOf('燃魂')>=0){hero.hp=Math.min(hero.maxHp,hero.hp+10);hero.mp=Math.min(hero.maxMp,hero.mp+5);}
+    // 被动: 剑意 - 击杀叠加攻击力
+    if(hd.extraPassive&&hd.extraPassive.indexOf('剑意')>=0){hero.killStacks=Math.min((hero.killStacks||0)+1,50);hero.atk+=1;}
     var kx=enemies[i].x*W,ky=enemies[i].y*H;for(var j=0;j<8;j++){var a=j*45*Math.PI/180;addP(kx+Math.cos(a)*20,ky+Math.sin(a)*20,'✦',enemies[i].boss?'#ffd700':'#ff6f00',10);}
     addP(kx,ky,'+'+enemies[i].exp+'EXP','#4fc3f7',12);enemies.splice(i,1);}}
   for(var i=particles.length-1;i>=0;i--)if(!particles[i].update())particles.splice(i,1);
