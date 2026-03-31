@@ -260,6 +260,8 @@ function NeutralCreature(type){
 }
 NeutralCreature.prototype.update=function(){
   if(!this.alive)return false;
+  // 60秒后消失
+  if(Date.now()-this.spawnTime>60000){this.alive=false;return false;}
   var t=this.path[this.wp],dx=t.x-this.x,dy=t.y-this.y,d=Math.sqrt(dx*dx+dy*dy);
   if(d<this.spd+0.01)this.wp=(this.wp+1)%this.path.length;
   else{this.x+=(dx/d)*this.spd;this.y+=(dy/d)*this.spd;}
@@ -912,8 +914,9 @@ function enterDungeon(d,level){
 
 function completeDungeon(){
   var d=dungeonActive,lvl=dungeonEnemy.level,s=getDungeonStats(d,lvl);
-  if(s.reward>0){gold+=s.reward;addP(W/2,H/2,'+'+s.reward+'金!','#ffd700',22);}
-  gainExp(s.exp);dungeonCompleted[d.type+'_'+lvl]=true;
+  var expGain=Math.floor(s.exp*1.5); // 经验150%
+  gainExp(expGain);addP(W/2,H/2,'+'+expGain+'EXP!','#4fc3f7',22);
+  dungeonCompleted[d.type+'_'+lvl]=true;
   if(dungeonLevels[d.type]===lvl&&lvl<10)dungeonLevels[d.type]++;
   dungeonEnemy=null;dungeonActive=null;playSound('ult');showToast('副本完成!');
 }
@@ -962,11 +965,20 @@ function levelUp(){hero.lv++;hero.expNeed=Math.floor(100*Math.pow(hero.lv,1.15))
 
 function showPromo(){
   state='paused';var modal=document.getElementById('promo-modal'),cards=document.getElementById('promo-cards');cards.innerHTML='';
-  // 自动转职 - 炫酷卡片
+  var hd=hData();
+  // 保留当前英雄
+  var keep=document.createElement('div');keep.className='card';keep.style.borderColor=hd.color;keep.style.minWidth='130px';
+  keep.innerHTML='<div class="icon" style="font-size:42px;">'+hd.icon+'</div>'
+    +'<div class="name" style="color:'+hd.color+';font-size:16px;">'+hd.cnName+'</div>'
+    +'<div class="desc" style="color:#aaa;font-size:10px;">【'+hd.title+'】'+hd.name+'（当前）</div>'
+    +'<div class="bonus" style="font-size:12px;color:#4caf50;margin-top:4px;">全属性+5%</div>'
+    +'<div class="desc" style="color:#ffd700;font-size:10px;margin-top:4px;">保留当前英雄</div>';
+  keep.onclick=function(){doPromo(false,hero.cls);};cards.appendChild(keep);
+  // 自动转职
   var auto=document.createElement('div');auto.className='card auto';
-  auto.innerHTML='<div class="icon" style="font-size:48px;">🎲</div><div class="name" style="color:#ff9800;font-size:15px;">随机转职</div><div class="bonus" style="font-size:13px;color:#4caf50;">全属性+10%</div><div class="desc">命运决定你的道路</div>';
+  auto.innerHTML='<div class="icon" style="font-size:48px;">🎲</div><div class="name" style="color:#ff9800;font-size:15px;">随机转职</div><div class="bonus" style="font-size:13px;color:#4caf50;">全属性+15%</div><div class="desc">命运决定你的道路</div>';
   auto.onclick=function(){doPromo(true);};cards.appendChild(auto);
-  // 手动选择
+  // 其他英雄选择
   var opts=getPromoOpts();for(var i=0;i<opts.length;i++){
     var o=opts[i],c=document.createElement('div');c.className='card';c.style.borderColor=o.color;c.style.minWidth='130px';
     c.innerHTML='<div class="icon" style="font-size:42px;">'+o.icon+'</div>'
@@ -990,7 +1002,7 @@ function getPromoOpts(){var hd=hData(),o=[],keys=Object.keys(HEROES);
   if(diffType.length>1)o.push({key:diffType[1],...HEROES[diffType[1]]});
   return o;
 }
-function doPromo(auto,key){var b=auto?1.1:1.05;if(auto){var o=getPromoOpts();key=o[Math.floor(Math.random()*o.length)].key;}hero.cls=key;hero.buff*=b;
+function doPromo(auto,key){var b=auto?1.15:1.05;if(auto){var o=getPromoOpts();key=o[Math.floor(Math.random()*o.length)].key;}hero.cls=key;hero.buff*=b;
   hero.promo++;
   // 攻击基于转职倍率重新计算
   var baseAtk=30+(hero.lv-1)*4;hero.atk=Math.floor(baseAtk*getPromoAtkMult(hero.promo));
@@ -1003,7 +1015,7 @@ function doPromo(auto,key){var b=auto?1.1:1.05;if(auto){var o=getPromoOpts();key
 
 // ====== 波次 ======
 function spawnWave(){
-  var count=Math.max(10,(6+Math.floor(wave*1.5))*2),boss=wave%5===0;
+  var count=wave<=10?Math.max(10,(6+Math.floor(wave*1.5))*2):(10+Math.floor(Math.random()*11)),boss=wave%5===0;
   var ann=document.getElementById('wave-ann');ann.className=boss?'wave-ann boss':'wave-ann';ann.innerHTML=boss?'⚠️ BOSS ⚠️':'WAVE '+wave;ann.style.display='block';setTimeout(function(){ann.style.display='none';},2000);
   var n=0;var iv=setInterval(function(){if(n>=count||state==='gameover'){clearInterval(iv);return;}
     if(boss&&n===0)enemies.push(new Enemy('outer','boss'));else{var pk=Math.random()<0.5?'inner':'outer',r=Math.random(),tk='normal';if(wave>2&&r<0.15)tk='fast';else if(wave>4&&r<0.25)tk='tank';else if(wave>6&&r<0.32)tk='elite';enemies.push(new Enemy(pk,tk));}n++;},500);
@@ -1041,8 +1053,13 @@ function updateSkUI(){
     var btn=document.querySelector('[data-skill="'+i+'"]'),sk=hero.skills[i];
     btn.querySelector('.ic').textContent=sk.ic;btn.querySelector('.nm').textContent=sk.name;
     var old=btn.querySelector('.cd');if(old)old.remove();
+    var old2=btn.querySelector('.mp-msg');if(old2)old2.remove();
     if(sk.cd>0){btn.classList.add('off');btn.classList.remove('on');var d=document.createElement('div');d.className='cd';d.textContent=Math.ceil(sk.cd);btn.appendChild(d);}
-    else if(hero.mp<sk.cost){btn.classList.add('off');btn.classList.remove('on');}
+    else if(hero.mp<sk.cost){
+      btn.classList.add('off');btn.classList.remove('on');
+      var m=document.createElement('div');m.className='mp-msg';m.textContent='等待魔法恢复';m.style.cssText='position:absolute;bottom:-2px;left:0;right:0;font-size:7px;color:#4fc3f7;text-align:center;';
+      btn.appendChild(m);
+    }
     else{btn.classList.remove('off');btn.classList.add('on');}
   }
 }
