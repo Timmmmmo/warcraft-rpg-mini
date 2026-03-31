@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>魔兽RPG - 无尽塔防</title>
+<title>我的刀盾要杀死3000个</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none}
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:'Microsoft YaHei',Arial,sans-serif}
@@ -14,6 +14,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
 .top{position:absolute;top:0;left:0;width:100%;padding:8px 10px;background:linear-gradient(180deg,rgba(0,0,0,.92),rgba(0,0,0,.6));display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #4a90d9;z-index:20}
 .top .item{color:#fff;font-size:11px;display:flex;align-items:center;gap:3px}
 .top .val{color:#ffd700;font-weight:bold}
+.logo{position:absolute;top:42px;left:50%;transform:translateX(-50%);color:#ffd700;font-size:14px;font-weight:bold;text-shadow:0 0 10px rgba(255,215,0,0.5);z-index:18;pointer-events:none;opacity:0.8;letter-spacing:2px;}
 .bot{position:absolute;bottom:0;left:0;width:100%;padding:10px 8px;background:linear-gradient(0deg,rgba(0,0,0,.95),rgba(0,0,0,.7));display:flex;justify-content:center;gap:10px;border-top:2px solid #4a90d9;z-index:20}
 .sk{width:68px;height:68px;border-radius:12px;border:3px solid #555;background:linear-gradient(180deg,#2a2a2a,#1a1a1a);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .2s}
 .sk.on{border-color:#4a90d9;background:linear-gradient(180deg,#2a4a7a,#1a2a4a);box-shadow:0 0 12px rgba(74,144,217,.5)}
@@ -74,6 +75,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
       <div class="item">💀<span class="val" id="kills">0</span></div>
       <div class="item">👹<span class="val" id="enemies">0</span>/300</div>
     </div>
+    <div class="logo">⚔️ 我的刀盾 ⚔️</div>
     <div class="side">
       <div class="hero-info">
         <div class="skin" id="class-skin">🗡️</div>

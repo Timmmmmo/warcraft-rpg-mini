@@ -1,7 +1,7 @@
 // ====== 魔兽RPG V5.0 - 完全重写 ======
 var canvas, ctx, W, H;
 var state = 'playing';
-var gold = 50, wave = 1, waveT = 8, kills = 0, shake = 0;
+var gold = 50, wave = 1, waveT = 0.5, kills = 0, shake = 0;
 var moveCd = 0, showRangeTimer = 0;
 
 // 塔位
@@ -212,9 +212,9 @@ var hero = {
 
 function getMpRegen(){
   var hd=hData();
-  if(hd.type==='int') return 2.0;
-  if(hd.type==='agi') return 1.5;
-  return 1.0; // str
+  if(hd.type==='int') return 4.0;
+  if(hd.type==='agi') return 3.0;
+  return 2.0; // str
 }
 // 智力英雄普攻80%
 function getAtkMult(){var hd=hData();return hd.type==='int'?0.8:1.0;}
@@ -464,7 +464,7 @@ function Enemy(pk,tk){
   this.boss=tk==='boss';var wm=1+wave*0.1;
   this.hp=(50+wave*12)*type.hpM*wm;this.maxHp=this.hp;
   this.def=3+wave*(this.boss?2:0.8);this.spd=(pk==='inner'?0.004:0.0025)*type.spdM*0.7;
-  this.exp=Math.floor((20+wave*8)*(this.boss?5:1)*0.3);
+  this.exp=Math.floor((20+wave*8)*(this.boss?5:1)*0.21); // 原始的21%（30%*70%）
   this.sz=this.boss?0.04:(tk==='elite'?0.028:(tk==='tank'?0.03:0.02));
   this.col=type.col;
 }
@@ -623,7 +623,7 @@ function autoAtk(){
   hero.atkTimer+=0.016;var hd=hData();if(hero.atkTimer<hd.atkSpd)return;hero.atkTimer=0;
   var hp=hPos(),range=hd.range*Math.min(W,H);
   if(dungeonEnemy){
-    var d=Math.max(1,Math.floor(hero.atk*1.5*getAtkMult()*hero.buff*(hero._atkBonus||1)));
+    var d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*(hero._atkBonus||1)));
     // 法穿: 无视30%护甲
     var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
     dungeonEnemy.hp-=d;addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,'-'+d,'#ffd700',14);playSound('hit');
@@ -633,7 +633,7 @@ function autoAtk(){
   }
   var t=null,md=Infinity;for(var i=0;i<enemies.length;i++){var e=enemies[i],d=dist(hp.x,hp.y,e.x*W,e.y*H);if(d<range&&d<md){md=d;t=e;}}
   if(t){
-    var d=Math.max(1,Math.floor(hero.atk*1.5*getAtkMult()*hero.buff*(hero._atkBonus||1)-t.def));
+    var d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*(hero._atkBonus||1)-t.def));
     var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
     // 感电: 10%概率额外闪电
     if(hd2.extraPassive&&hd2.extraPassive.indexOf('感电')>=0&&Math.random()<0.1){
@@ -957,7 +957,7 @@ function doPromo(auto,key){var b=auto?1.1:1.05;if(auto){var o=getPromoOpts();key
 
 // ====== 波次 ======
 function spawnWave(){
-  var count=(6+Math.floor(wave*1.5))*2,boss=wave%5===0; // 怪物数量×2
+  var count=Math.max(10,(6+Math.floor(wave*1.5))*2),boss=wave%5===0;
   var ann=document.getElementById('wave-ann');ann.className=boss?'wave-ann boss':'wave-ann';ann.innerHTML=boss?'⚠️ BOSS ⚠️':'WAVE '+wave;ann.style.display='block';setTimeout(function(){ann.style.display='none';},2000);
   var n=0;var iv=setInterval(function(){if(n>=count||state==='gameover'){clearInterval(iv);return;}
     if(boss&&n===0)enemies.push(new Enemy('outer','boss'));else{var pk=Math.random()<0.5?'inner':'outer',r=Math.random(),tk='normal';if(wave>2&&r<0.15)tk='fast';else if(wave>4&&r<0.25)tk='tank';else if(wave>6&&r<0.32)tk='elite';enemies.push(new Enemy(pk,tk));}n++;},500);
@@ -965,7 +965,7 @@ function spawnWave(){
 }
 
 function checkEnd(){
-  if(kills>=5000)gameOver('🏆 胜利！击杀5000敌人！');
+  if(kills>=3000)gameOver('🏆 胜利！击杀3000敌人！');
   if(enemies.length>=300)gameOver('敌人超过300!');
   if(hero.hp<=0)gameOver('英雄阵亡!');
 }
@@ -1158,7 +1158,7 @@ function setupEvents(){
     // 攻击中立怪
     for(var i=0;i<neutrals.length;i++){
       if(neutrals[i].alive&&neutrals[i].hitTest(x,y)){
-        var n=neutrals[i],d=Math.max(1,Math.floor(hero.atk*1.5*getAtkMult()*hero.buff));
+        var n=neutrals[i],d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff));
         n.hp-=d;addP(n.x*W,n.y*H-20,'-'+d,'#fff',14);playSound('hit');
         if(n.hp<=0)n.die();
         return;
