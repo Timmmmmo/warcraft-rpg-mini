@@ -17,22 +17,108 @@ var PATHS = {
   outer: [{x:0.08,y:0.09},{x:0.92,y:0.09},{x:0.92,y:0.91},{x:0.08,y:0.91},{x:0.08,y:0.09}]
 };
 
-// 职业
+// 职业 - 10位英雄，每位独特必杀
 var HEROES = {
-  warrior: {name:'战士',icon:'⚔️',color:'#ff1744',skin:'🗡️',range:0.48,type:'str',atkSpd:0.9,ultCd:25,passive:'15%眩晕'},
-  archer: {name:'弓手',icon:'🏹',color:'#2979ff',skin:'🎯',range:0.84,type:'agi',atkSpd:0.45,ultCd:22,passive:'20%双倍'},
-  mage: {name:'法师',icon:'🔮',color:'#ffd600',skin:'✨',range:0.672,type:'int',atkSpd:0.7,ultCd:12,passive:'普攻减速'},
-  blademaster: {name:'剑圣',icon:'⚔️',color:'#ff5252',skin:'🗡️',range:0.528,type:'str',atkSpd:0.85,ultCd:22,passive:'15%眩晕'},
-  mountainking: {name:'山丘',icon:'🛡️',color:'#ffd700',skin:'🔨',range:0.432,type:'str',atkSpd:1.0,ultCd:28,passive:'15%眩晕'},
-  bloodmage: {name:'血法',icon:'🔥',color:'#d32f2f',skin:'🔥',range:0.6,type:'int',atkSpd:0.65,ultCd:10,passive:'普攻减速'},
-  windrunner: {name:'风行',icon:'💨',color:'#00e676',skin:'💨',range:0.96,type:'agi',atkSpd:0.4,ultCd:20,passive:'20%双倍'},
-  shadowhunter: {name:'暗猎',icon:'🌑',color:'#7b1fa2',skin:'🗡️',range:0.792,type:'agi',atkSpd:0.35,ultCd:18,passive:'25%双倍'},
-  frost: {name:'冰法',icon:'❄️',color:'#4fc3f7',skin:'❄️',range:0.72,type:'int',atkSpd:0.75,ultCd:11,passive:'普攻减速'},
-  storm: {name:'雷法',icon:'⚡',color:'#7c4dff',skin:'⚡',range:0.672,type:'int',atkSpd:0.6,ultCd:8,passive:'普攻减速'},
-  titan: {name:'泰坦',icon:'🏔️',color:'#ff8f00',skin:'🏔️',range:0.48,type:'str',atkSpd:0.9,ultCd:30,passive:'15%眩晕'},
-  gale: {name:'疾风',icon:'🌪️',color:'#18ffff',skin:'🌪️',range:1.056,type:'agi',atkSpd:0.35,ultCd:25,passive:'20%双倍'},
-  inferno: {name:'炎魔',icon:'🌋',color:'#ff6d00',skin:'🌋',range:0.672,type:'int',atkSpd:0.6,ultCd:8,passive:'普攻减速'},
-  phoenix: {name:'凤凰',icon:'🦚',color:'#ff4081',skin:'🦚',range:0.792,type:'int',atkSpd:0.55,ultCd:7,passive:'普攻减速'}
+  warrior: {
+    name:'战士',icon:'⚔️',color:'#ff1744',skin:'🗡️',range:0.48,type:'str',atkSpd:0.9,ultCd:25,
+    passive:'15%眩晕',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'旋风斩',ic:'🌪️',cd:0,maxCd:20,dmg:4.5,aoe:0.8,type:'big',cost:25,
+       fx:'spin',desc:'360°旋风斩，超高AOE'}
+    ]
+  },
+  archer: {
+    name:'弓手',icon:'🏹',color:'#2979ff',skin:'🎯',range:0.84,type:'agi',atkSpd:0.45,ultCd:22,
+    passive:'20%双倍',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'箭雨',ic:'🌧️',cd:0,maxCd:18,dmg:3.0,aoe:1.0,type:'big',cost:22,
+       fx:'rain',desc:'箭雨覆盖全场，持续伤害'}
+    ]
+  },
+  mage: {
+    name:'法师',icon:'🔮',color:'#ffd600',skin:'✨',range:0.672,type:'int',atkSpd:0.7,ultCd:12,
+    passive:'普攻减速',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'陨石雨',ic:'☄️',cd:0,maxCd:22,dmg:5.5,aoe:0.7,type:'big',cost:28,
+       fx:'meteor',desc:'陨石从天而降，毁灭性打击'}
+    ]
+  },
+  blademaster: {
+    name:'剑圣',icon:'⚔️',color:'#ff5252',skin:'🗡️',range:0.528,type:'str',atkSpd:0.85,ultCd:22,
+    passive:'15%眩晕',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'剑刃风暴',ic:'🌀',cd:0,maxCd:18,dmg:5.0,aoe:0.65,type:'big',cost:24,
+       fx:'bladestorm',desc:'化身风暴，斩灭一切'}
+    ]
+  },
+  mountainking: {
+    name:'山丘',icon:'🛡️',color:'#ffd700',skin:'🔨',range:0.432,type:'str',atkSpd:1.0,ultCd:28,
+    passive:'15%眩晕',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'雷霆一击',ic:'⚡',cd:0,maxCd:25,dmg:6.0,aoe:0.6,type:'big',cost:28,
+       fx:'thunder',desc:'雷霆震地，眩晕全场'}
+    ]
+  },
+  windrunner: {
+    name:'风行',icon:'💨',color:'#00e676',skin:'💨',range:0.96,type:'agi',atkSpd:0.4,ultCd:20,
+    passive:'20%双倍',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'精准射击',ic:'🎯',cd:0,maxCd:15,dmg:8.0,aoe:0.15,type:'big',cost:18,
+       fx:'snipe',desc:'一击必杀，超高单体伤害'}
+    ]
+  },
+  shadowhunter: {
+    name:'暗猎',icon:'🌑',color:'#7b1fa2',skin:'🗡️',range:0.792,type:'agi',atkSpd:0.35,ultCd:18,
+    passive:'25%双倍',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'毒蛇陷阱',ic:'🐍',cd:0,maxCd:20,dmg:3.5,aoe:0.85,type:'big',cost:22,
+       fx:'poison',desc:'毒雾弥漫，持续毒伤'}
+    ]
+  },
+  frost: {
+    name:'冰法',icon:'❄️',color:'#4fc3f7',skin:'❄️',range:0.72,type:'int',atkSpd:0.75,ultCd:11,
+    passive:'普攻减速',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'冰封领域',ic:'🧊',cd:0,maxCd:20,dmg:3.0,aoe:0.9,type:'big',cost:25,
+       fx:'frost',desc:'冰封全场，减速+持续伤害'}
+    ]
+  },
+  bloodmage: {
+    name:'血法',icon:'🔥',color:'#d32f2f',skin:'🔥',range:0.6,type:'int',atkSpd:0.65,ultCd:10,
+    passive:'普攻减速',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'烈焰之柱',ic:'🌋',cd:0,maxCd:16,dmg:4.0,aoe:0.75,type:'big',cost:20,
+       fx:'flame',desc:'地火喷涌，焚尽万物'}
+    ]
+  },
+  storm: {
+    name:'雷法',icon:'⚡',color:'#7c4dff',skin:'⚡',range:0.672,type:'int',atkSpd:0.6,ultCd:8,
+    passive:'普攻减速',
+    skills:[
+      {name:'小必杀',ic:'💫',cd:0,maxCd:5,dmg:3.75,aoe:0.506,type:'small',cost:12,
+       fx:'ring',desc:'范围冲击波'},
+      {name:'连锁闪电',ic:'⚡',cd:0,maxCd:14,dmg:4.5,aoe:0.85,type:'big',cost:22,
+       fx:'chain',desc:'闪电链弹射，连锁打击'}
+    ]
+  }
 };
 
 // 怪物类型
@@ -109,11 +195,16 @@ var hero = {
   cls:'warrior',towerIdx:4,lv:1,exp:0,expNeed:100,
   hp:150,maxHp:150,mp:80,maxMp:80,atk:30,def:8,atkTimer:0,
   crit:0.1,critDmg:2.0,promo:0,buff:1.0,
-  skills:[
-    {name:'小必杀',cd:0,maxCd:5,dmg:3.75,ic:'💫',aoe:0.506,type:'small'},
-    {name:'大必杀',cd:0,maxCd:20,dmg:4.2,ic:'⚡',aoe:0.945,type:'big'}
-  ]
+  skills: null // 会在 initHeroSkills 中根据职业填充
 };
+
+function initHeroSkills(){
+  var hd = HEROES[hero.cls] || HEROES.warrior;
+  hero.skills = [
+    {name:hd.skills[0].name, ic:hd.skills[0].ic, cd:0, maxCd:hd.skills[0].maxCd, dmg:hd.skills[0].dmg, aoe:hd.skills[0].aoe, type:hd.skills[0].type, cost:hd.skills[0].cost, fx:hd.skills[0].fx},
+    {name:hd.skills[1].name, ic:hd.skills[1].ic, cd:0, maxCd:hd.skills[1].maxCd, dmg:hd.skills[1].dmg, aoe:hd.skills[1].aoe, type:hd.skills[1].type, cost:hd.skills[1].cost, fx:hd.skills[1].fx}
+  ];
+}
 
 function hPos() { return {x:TOWERS[hero.towerIdx].x*W, y:TOWERS[hero.towerIdx].y*H}; }
 function hData() { return HEROES[hero.cls]||HEROES.warrior; }
@@ -290,14 +381,39 @@ Enemy.prototype.update=function(){
 };
 Enemy.prototype.draw=function(){
   var x=this.x*W,y=this.y*H,sz=this.sz*Math.min(W,H);
-  ctx.fillStyle='rgba(0,0,0,0.3)';ctx.beginPath();ctx.ellipse(x,y+sz*0.8,sz*0.8,sz*0.2,0,0,Math.PI*2);ctx.fill();
-  var g=ctx.createRadialGradient(x,y,0,x,y,sz);g.addColorStop(0,this.col);g.addColorStop(1,shade(this.col,-40));
+  // 影子
+  ctx.fillStyle='rgba(0,0,0,0.4)';ctx.beginPath();ctx.ellipse(x,y+sz*0.9,sz*0.9,sz*0.25,0,0,Math.PI*2);ctx.fill();
+  // 身体 - 渐变
+  var g=ctx.createRadialGradient(x-sz*0.2,y-sz*0.2,sz*0.1,x,y,sz*1.1);g.addColorStop(0,shade(this.col,40));g.addColorStop(0.6,this.col);g.addColorStop(1,shade(this.col,-50));
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle=shade(this.col,-50);ctx.lineWidth=2;ctx.stroke();
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x-sz*0.3,y-sz*0.1,sz*0.18,0,Math.PI*2);ctx.arc(x+sz*0.3,y-sz*0.1,sz*0.18,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=this.boss?'#f00':'#111';ctx.beginPath();ctx.arc(x-sz*0.3,y-sz*0.1,sz*0.08,0,Math.PI*2);ctx.arc(x+sz*0.3,y-sz*0.1,sz*0.08,0,Math.PI*2);ctx.fill();
-  if(this.boss){ctx.fillStyle='#ffd600';ctx.beginPath();ctx.moveTo(x-sz*0.4,y-sz*0.7);ctx.lineTo(x-sz*0.2,y-sz*1.2);ctx.lineTo(x,y-sz*0.6);ctx.fill();ctx.beginPath();ctx.moveTo(x+sz*0.4,y-sz*0.7);ctx.lineTo(x+sz*0.2,y-sz*1.2);ctx.lineTo(x,y-sz*0.6);ctx.fill();}
-  var bw=sz*2,by=y-sz-8;ctx.fillStyle='#222';ctx.fillRect(x-bw/2,by,bw,4);ctx.fillStyle=this.hp/this.maxHp>0.5?'#4caf50':'#f44336';ctx.fillRect(x-bw/2,by,bw*(this.hp/this.maxHp),4);
+  // 高光
+  ctx.save();ctx.globalAlpha=0.3;var hl=ctx.createRadialGradient(x-sz*0.3,y-sz*0.3,0,x-sz*0.3,y-sz*0.3,sz*0.5);hl.addColorStop(0,'#fff');hl.addColorStop(1,'transparent');ctx.fillStyle=hl;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();ctx.restore();
+  // 轮廓
+  ctx.strokeStyle=shade(this.col,-60);ctx.lineWidth=2;ctx.stroke();
+  // 眼睛
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x-sz*0.3,y-sz*0.15,sz*0.2,sz*0.22,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(x+sz*0.3,y-sz*0.15,sz*0.2,sz*0.22,0,0,Math.PI*2);ctx.fill();
+  // 瞳孔
+  var eyeCol=this.boss?'#f00':(this.tk==='elite'?'#ffd700':(this.tk==='fast'?'#00e5ff':'#111'));
+  ctx.fillStyle=eyeCol;ctx.beginPath();ctx.arc(x-sz*0.28,y-sz*0.12,sz*0.1,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(x+sz*0.32,y-sz*0.12,sz*0.1,0,Math.PI*2);ctx.fill();
+  // 眼睛高光
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x-sz*0.32,y-sz*0.18,sz*0.05,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(x+sz*0.28,y-sz*0.18,sz*0.05,0,Math.PI*2);ctx.fill();
+  // Boss 特效
+  if(this.boss){
+    ctx.fillStyle='#ffd600';ctx.beginPath();ctx.moveTo(x-sz*0.5,y-sz*0.7);ctx.lineTo(x-sz*0.15,y-sz*1.4);ctx.lineTo(x,y-sz*0.6);ctx.fill();
+    ctx.beginPath();ctx.moveTo(x+sz*0.5,y-sz*0.7);ctx.lineTo(x+sz*0.15,y-sz*1.4);ctx.lineTo(x,y-sz*0.6);ctx.fill();
+    ctx.save();ctx.globalAlpha=0.15+Math.sin(Date.now()/200)*0.1;ctx.fillStyle='#ffd600';ctx.beginPath();ctx.arc(x,y,sz*1.5,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  // Elite 光环
+  if(this.tk==='elite'){ctx.save();ctx.globalAlpha=0.2+Math.sin(Date.now()/300)*0.1;ctx.strokeStyle='#e040fb';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,sz*1.3,0,Math.PI*2);ctx.stroke();ctx.restore();}
+  // 血条背景
+  var bw=sz*2.2,by=y-sz-10,bh=5;ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-bw/2-1,by-1,bw+2,bh+2);
+  // 血条
+  var hpPct=this.hp/this.maxHp;ctx.fillStyle=hpPct>0.5?'#4caf50':(hpPct>0.25?'#ff9800':'#f44336');ctx.fillRect(x-bw/2,by,bw*hpPct,bh);
+  // 血条高光
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillRect(x-bw/2,by,bw*hpPct,bh*0.4);
 };
 
 // ====== 副本敌人 ======
@@ -356,35 +472,116 @@ function autoAtk(){
   if(t){var d=Math.max(1,Math.floor(hero.atk*hero.buff-t.def));t.hp-=d;addP(t.x*W,t.y*H-15,'-'+d,hd.color,12);playSound('hit');}
 }
 
-// ====== 技能释放 ======
+// ====== 技能释放（10种独特特效） ======
 function useSkill(idx){
-  var sk=hero.skills[idx],costs=[12,25];if(sk.cd>0||hero.mp<costs[idx])return;
-  sk.cd=sk.maxCd;hero.mp-=costs[idx];var hp=hPos(),hd=hData(),aoe=sk.aoe*Math.min(W,H);
+  var sk=hero.skills[idx];if(sk.cd>0||hero.mp<sk.cost)return;
+  sk.cd=sk.maxCd;hero.mp-=sk.cost;var hp=hPos(),hd=hData(),aoe=sk.aoe*Math.min(W,H);
   
-  // === 显示技能名称 (大字) ===
-  var nameColor=sk.type==='big'?'#ffd700':'#fff';
+  // 技能名称大字
+  var nameColor=sk.type==='big'?hd.color:'#fff';
   var nameSize=sk.type==='big'?36:28;
   addP(hp.x,hp.y-70,sk.name,nameColor,nameSize);
-  addP(hp.x+2,hp.y-68,sk.name,'#000',nameSize);
   addP(hp.x,hp.y-40,sk.ic,nameColor,32);
   
-  // === 显示范围 ===
+  // 显示范围
   showRangeTimer=30;
   
-  // === 持续效果 ===
+  // 持续伤害效果
   var dmg=Math.floor(hero.atk*sk.dmg*hero.buff*0.15);
   lastingEffects.push(new LastingEffect(sk.type,hp.x,hp.y,aoe,dmg,120));
   
-  // === 特效粒子 ===
-  for(var j=0;j<(sk.type==='big'?15:8);j++){
-    var ang=j*(sk.type==='big'?24:45)*Math.PI/180;
-    addP(hp.x+Math.cos(ang)*aoe*0.5,hp.y+Math.sin(ang)*aoe*0.5,sk.ic,sk.type==='big'?'#ffd700':hd.color,20);
-  }
-  if(sk.type==='big'){addP(hp.x,hp.y,'💥','#ff6f00',36);}
+  // ====== 英雄专属特效 ======
+  var fxCount = sk.type==='big'?20:10;
   
-  // === 伤害 ===
+  switch(sk.fx){
+    case 'spin': // 旋风斩 - 旋转刀光
+      for(var j=0;j<fxCount;j++){
+        var ang=j*(360/fxCount)*Math.PI/180;
+        addP(hp.x+Math.cos(ang)*aoe*0.6,hp.y+Math.sin(ang)*aoe*0.6,'⚔️',hd.color,22);
+      }
+      addP(hp.x,hp.y,'💥','#ff6f00',40);
+      break;
+    case 'rain': // 箭雨 - 从上方落下
+      for(var j=0;j<fxCount*2;j++){
+        var rx=hp.x+(Math.random()-0.5)*aoe*2,ry=hp.y+(Math.random()-0.5)*aoe*2;
+        addP(rx,ry-80,'↓','#2979ff',18);
+        addP(rx,ry-60,'➳','#fff',14);
+      }
+      break;
+    case 'meteor': // 陨石雨 - 燃烧陨石
+      for(var j=0;j<fxCount;j++){
+        var ang=Math.random()*Math.PI*2,dist2=Math.random()*aoe*0.8;
+        addP(hp.x+Math.cos(ang)*dist2,hp.y+Math.sin(ang)*dist2-60,'☄️','#ff6f00',28);
+        addP(hp.x+Math.cos(ang)*dist2,hp.y+Math.sin(ang)*dist2,'💥','#ffd700',20);
+      }
+      addP(hp.x,hp.y,'🔥','#ff4400',36);
+      break;
+    case 'bladestorm': // 剑刃风暴 - 高速旋转
+      for(var j=0;j<fxCount*2;j++){
+        var ang=(Date.now()/5+j*18)*Math.PI/180;
+        addP(hp.x+Math.cos(ang)*aoe*0.5,hp.y+Math.sin(ang)*aoe*0.5,'🗡️','#ff5252',20);
+      }
+      addP(hp.x,hp.y,'🌀','#ff0000',42);
+      break;
+    case 'thunder': // 雷霆一击 - 闪电劈落
+      for(var j=0;j<8;j++){
+        var ang=j*45*Math.PI/180;
+        addP(hp.x+Math.cos(ang)*aoe*0.3,hp.y+Math.sin(ang)*aoe*0.3,'⚡','#ffd700',30);
+        addP(hp.x+Math.cos(ang)*aoe*0.6,hp.y+Math.sin(ang)*aoe*0.6,'⚡','#fff',22);
+      }
+      addP(hp.x,hp.y-20,'💫','#ffd700',40);
+      break;
+    case 'snipe': // 精准射击 - 单点爆发
+      addP(hp.x,hp.y,'🎯','#00e676',40);
+      addP(hp.x,hp.y-10,'💥','#ff0000',50);
+      for(var j=0;j<6;j++){
+        addP(hp.x+(Math.random()-0.5)*40,hp.y+(Math.random()-0.5)*40,'✦','#00e676',16);
+      }
+      break;
+    case 'poison': // 毒蛇陷阱 - 毒雾弥漫
+      for(var j=0;j<fxCount;j++){
+        var ang=Math.random()*Math.PI*2,d2=Math.random()*aoe*0.7;
+        addP(hp.x+Math.cos(ang)*d2,hp.y+Math.sin(ang)*d2,'☠️','#7b1fa2',18);
+      }
+      addP(hp.x,hp.y,'🐍','#9c27b0',36);
+      break;
+    case 'frost': // 冰封领域 - 冰晶扩散
+      for(var j=0;j<fxCount;j++){
+        var ang=j*(360/fxCount)*Math.PI/180;
+        addP(hp.x+Math.cos(ang)*aoe*0.7,hp.y+Math.sin(ang)*aoe*0.7,'❄️','#4fc3f7',24);
+        addP(hp.x+Math.cos(ang)*aoe*0.4,hp.y+Math.sin(ang)*aoe*0.4,'💎','#b3e5fc',16);
+      }
+      addP(hp.x,hp.y,'🧊','#fff',40);
+      break;
+    case 'flame': // 烈焰之柱 - 地火喷涌
+      for(var j=0;j<fxCount;j++){
+        var ang=Math.random()*Math.PI*2,d2=Math.random()*aoe*0.6;
+        addP(hp.x+Math.cos(ang)*d2,hp.y+Math.sin(ang)*d2,'🔥','#ff4400',26);
+        addP(hp.x+Math.cos(ang)*d2,hp.y+Math.sin(ang)*d2-20,'🌋','#ff6f00',20);
+      }
+      addP(hp.x,hp.y,'💥','#ff0000',42);
+      break;
+    case 'chain': // 连锁闪电 - 弹射轨迹
+      var prevX=hp.x,prevY=hp.y;
+      for(var j=0;j<8;j++){
+        var nx=prevX+(Math.random()-0.5)*aoe*0.6,ny=prevY+(Math.random()-0.5)*aoe*0.6;
+        addP(nx,ny,'⚡','#7c4dff',22);
+        addP((prevX+nx)/2,(prevY+ny)/2,'⚡','#b388ff',16);
+        prevX=nx;prevY=ny;
+      }
+      addP(hp.x,hp.y,'⚡','#fff',38);
+      break;
+    default: // ring - 默认环形冲击
+      for(var j=0;j<(sk.type==='big'?15:8);j++){
+        var ang=j*(sk.type==='big'?24:45)*Math.PI/180;
+        addP(hp.x+Math.cos(ang)*aoe*0.5,hp.y+Math.sin(ang)*aoe*0.5,sk.ic,hd.color,20);
+      }
+      if(sk.type==='big'){addP(hp.x,hp.y,'💥','#ff6f00',36);}
+  }
+  
+  // 伤害判定
   if(dungeonEnemy){var d=Math.max(1,Math.floor(hero.atk*sk.dmg*hero.buff));dungeonEnemy.hp-=d;addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,'-'+d,'#ffd700',16);if(dungeonEnemy.hp<=0)completeDungeon();}
-  else{for(var i=0;i<enemies.length;i++){var e=enemies[i];if(dist(hp.x,hp.y,e.x*W,e.y*H)<aoe){var d=Math.max(1,Math.floor(hero.atk*sk.dmg*hero.buff-e.def));e.hp-=d;addP(e.x*W,e.y*H-15,'-'+d,sk.type==='big'?'#ffd700':'#4fc3f7',14);}}}
+  else{for(var i=0;i<enemies.length;i++){var e=enemies[i];if(dist(hp.x,hp.y,e.x*W,e.y*H)<aoe){var d=Math.max(1,Math.floor(hero.atk*sk.dmg*hero.buff-e.def));e.hp-=d;addP(e.x*W,e.y*H-15,'-'+d,sk.type==='big'?hd.color:'#4fc3f7',14);}}}
   shake=sk.type==='big'?12:6;playSound('ult');updateSkUI();
 }
 
@@ -436,6 +633,38 @@ function completeDungeon(){
 }
 function failDungeon(){dungeonEnemy=null;dungeonActive=null;showToast('副本失败!');}
 
+// ====== 开局英雄选择 ======
+function showHeroSelect(){
+  state='paused';
+  var modal=document.getElementById('hero-select-modal'),cards=document.getElementById('hero-select-cards');
+  cards.innerHTML='';
+  var heroKeys=Object.keys(HEROES);
+  for(var i=0;i<heroKeys.length;i++){
+    var key=heroKeys[i],h=HEROES[key];
+    var card=document.createElement('div');
+    card.className='card';
+    card.style.borderColor=h.color;
+    card.innerHTML='<div class="icon">'+h.icon+'</div>'
+      +'<div class="name" style="color:'+h.color+'">'+h.name+'</div>'
+      +'<div class="desc" style="color:#aaa;font-size:9px;">['+(h.type==='str'?'力量':h.type==='agi'?'敏捷':'智力')+']</div>'
+      +'<div class="desc">'+h.passive+'</div>'
+      +'<div class="desc" style="color:'+h.color+';margin-top:4px;font-weight:bold;">'+h.skills[1].ic+' '+h.skills[1].name+'</div>'
+      +'<div class="desc" style="font-size:8px;">'+h.skills[1].desc+'</div>';
+    (function(k){card.onclick=function(){selectHero(k);};})(key);
+    cards.appendChild(card);
+  }
+  modal.classList.add('show');
+}
+
+function selectHero(key){
+  hero.cls=key;
+  initHeroSkills();
+  document.getElementById('hero-select-modal').classList.remove('show');
+  state='playing';
+  var hd=HEROES[key];
+  showToast('选择了 '+hd.icon+' '+hd.name+'！');
+}
+
 // ====== 升级转职 ======
 function gainExp(a){hero.exp+=a;while(hero.exp>=hero.expNeed){hero.exp-=hero.expNeed;levelUp();}}
 function levelUp(){hero.lv++;hero.expNeed=Math.floor(100*Math.pow(hero.lv,1.15));hero.maxHp+=25;hero.hp=hero.maxHp;hero.maxMp+=12;hero.mp=hero.maxMp;hero.atk+=4;hero.def+=2;
@@ -451,12 +680,13 @@ function showPromo(){
 }
 function getPromoOpts(){var hd=hData(),o=[];if(hero.promo===0){if(hd.type==='str'){o.push({key:'blademaster',...HEROES.blademaster});o.push({key:'mountainking',...HEROES.mountainking});}else if(hd.type==='agi'){o.push({key:'windrunner',...HEROES.windrunner});o.push({key:'shadowhunter',...HEROES.shadowhunter});}else{o.push({key:'bloodmage',...HEROES.bloodmage});o.push({key:'frost',...HEROES.frost});}}else{if(hd.type==='str')o.push({key:'titan',...HEROES.titan});else if(hd.type==='agi')o.push({key:'gale',...HEROES.gale});else o.push({key:'storm',...HEROES.storm});}return o;}
 function doPromo(auto,key){var b=auto?1.2:1.1;if(auto){var o=getPromoOpts();key=o[Math.floor(Math.random()*o.length)].key;}hero.cls=key;hero.buff*=b;hero.atk=Math.floor(hero.atk*b);hero.def=Math.floor(hero.def*b);hero.maxHp=Math.floor(hero.maxHp*b);hero.hp=hero.maxHp;hero.maxMp=Math.floor(hero.maxMp*b);hero.mp=hero.maxMp;hero.promo++;
+  initHeroSkills(); // 转职后重新初始化技能
   document.getElementById('promo-modal').classList.remove('show');state='playing';var hp=hPos();addP(hp.x,hp.y-40,'转职:'+HEROES[key].name,'#ffd700',24);playSound('ult');
 }
 
 // ====== 波次 ======
 function spawnWave(){
-  var count=6+Math.floor(wave*1.5),boss=wave%5===0;
+  var count=(6+Math.floor(wave*1.5))*2,boss=wave%5===0; // 怪物数量×2
   var ann=document.getElementById('wave-ann');ann.className=boss?'wave-ann boss':'wave-ann';ann.innerHTML=boss?'⚠️ BOSS ⚠️':'WAVE '+wave;ann.style.display='block';setTimeout(function(){ann.style.display='none';},2000);
   var n=0;var iv=setInterval(function(){if(n>=count||state==='gameover'){clearInterval(iv);return;}
     if(boss&&n===0)enemies.push(new Enemy('outer','boss'));else{var pk=Math.random()<0.5?'inner':'outer',r=Math.random(),tk='normal';if(wave>2&&r<0.15)tk='fast';else if(wave>4&&r<0.25)tk='tank';else if(wave>6&&r<0.32)tk='elite';enemies.push(new Enemy(pk,tk));}n++;},500);
@@ -479,44 +709,104 @@ function updateUI(){
   updateSkUI();
 }
 function updateSkUI(){
-  var costs=[12,25];for(var i=0;i<2;i++){
+  for(var i=0;i<2;i++){
     var btn=document.querySelector('[data-skill="'+i+'"]'),sk=hero.skills[i];
     btn.querySelector('.ic').textContent=sk.ic;btn.querySelector('.nm').textContent=sk.name;
     var old=btn.querySelector('.cd');if(old)old.remove();
     if(sk.cd>0){btn.classList.add('off');btn.classList.remove('on');var d=document.createElement('div');d.className='cd';d.textContent=Math.ceil(sk.cd);btn.appendChild(d);}
-    else if(hero.mp<costs[i]){btn.classList.add('off');btn.classList.remove('on');}
+    else if(hero.mp<sk.cost){btn.classList.add('off');btn.classList.remove('on');}
     else{btn.classList.remove('off');btn.classList.add('on');}
   }
 }
 
 // ====== 绘制 ======
 function drawMap(){
-  var bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#1a2a1a');bg.addColorStop(1,'#0d1b0d');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-  drawPath(PATHS.outer,'rgba(100,70,40,0.5)',30);drawPath(PATHS.inner,'rgba(80,80,120,0.4)',24);
-  for(var i=0;i<TOWERS.length;i++){var t=TOWERS[i],tx=t.x*W,ty=t.y*H,active=hero.towerIdx===i;
-    ctx.strokeStyle=active?'#ffd700':'rgba(150,150,150,0.5)';ctx.lineWidth=active?3:2;ctx.beginPath();ctx.arc(tx,ty,25,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle=active?'rgba(74,144,217,0.2)':'rgba(50,50,50,0.2)';ctx.fill();
-    ctx.fillStyle=active?'#ffd700':'rgba(255,255,255,0.4)';ctx.font='10px Arial';ctx.textAlign='center';ctx.fillText((active?'📍':'')+t.name,tx,ty+38);
+  // 背景 - 深色渐变 + 网格纹理
+  var bg=ctx.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#0f1f0f');bg.addColorStop(0.5,'#1a2a1a');bg.addColorStop(1,'#0d1b0d');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // 网格
+  ctx.strokeStyle='rgba(50,80,50,0.15)';ctx.lineWidth=1;
+  for(var gx=0;gx<W;gx+=40){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
+  for(var gy=0;gy<H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+  // 路径 - 带发光效果
+  ctx.save();ctx.shadowColor='rgba(139,119,80,0.5)';ctx.shadowBlur=15;
+  drawPath(PATHS.outer,'rgba(120,90,50,0.6)',32);ctx.restore();
+  drawPath(PATHS.outer,'rgba(80,60,30,0.8)',20);
+  ctx.save();ctx.shadowColor='rgba(80,80,160,0.4)';ctx.shadowBlur=12;
+  drawPath(PATHS.inner,'rgba(60,60,120,0.5)',26);ctx.restore();
+  drawPath(PATHS.inner,'rgba(40,40,100,0.7)',16);
+  // 塔位
+  for(var i=0;i<TOWERS.length;i++){
+    var t=TOWERS[i],tx=t.x*W,ty=t.y*H,active=hero.towerIdx===i;
+    // 塔底座
+    ctx.save();
+    if(active){ctx.shadowColor='#ffd700';ctx.shadowBlur=20;}
+    ctx.fillStyle=active?'rgba(74,144,217,0.3)':'rgba(50,50,50,0.3)';
+    ctx.beginPath();ctx.arc(tx,ty,28,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=active?'#ffd700':'rgba(150,150,150,0.5)';
+    ctx.lineWidth=active?3:2;ctx.stroke();
+    ctx.restore();
+    // 塔图标
+    ctx.font=active?'18px Arial':'14px Arial';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle=active?'#ffd700':'rgba(255,255,255,0.5)';
+    ctx.fillText(active?'🏰':'🏚️',tx,ty);
+    // 名称
+    ctx.font='10px Arial';ctx.fillStyle=active?'#ffd700':'rgba(255,255,255,0.4)';
+    ctx.fillText(t.name,tx,ty+40);
   }
 }
 function drawPath(path,col,w){ctx.strokeStyle=col;ctx.lineWidth=w;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(path[0].x*W,path[0].y*H);for(var i=1;i<path.length;i++)ctx.lineTo(path[i].x*W,path[i].y*H);ctx.closePath();ctx.stroke();}
 function drawHero(){
-  var hp=hPos(),hd=hData(),x=hp.x,y=hp.y+Math.sin(Date.now()/300)*3,sz=28;
+  var hp=hPos(),hd=hData(),x=hp.x,y=hp.y+Math.sin(Date.now()/300)*3,sz=30;
   if(showRangeTimer>0){ctx.save();ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=2;ctx.setLineDash([8,4]);ctx.beginPath();ctx.arc(x,y,hd.range*Math.min(W,H),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
-  ctx.save();ctx.globalAlpha=0.15;var gl=ctx.createRadialGradient(x,y,0,x,y,40);gl.addColorStop(0,hd.color);gl.addColorStop(1,'transparent');ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,40,0,Math.PI*2);ctx.fill();ctx.restore();
-  var g=ctx.createRadialGradient(x-5,y-5,3,x,y,24);g.addColorStop(0,'#fff');g.addColorStop(0.3,hd.color);g.addColorStop(1,shade(hd.color,-40));ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
-  ctx.shadowColor=hd.color;ctx.shadowBlur=15;ctx.strokeStyle='#fff';ctx.lineWidth=2.5;ctx.stroke();ctx.shadowBlur=0;
-  ctx.fillStyle='#ffe0b2';ctx.beginPath();ctx.arc(x,y-2,sz*0.55,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x-8,y-5,7,8,0,0,Math.PI*2);ctx.ellipse(x+8,y-5,7,8,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#333';ctx.beginPath();ctx.arc(x-7,y-4,4,0,Math.PI*2);ctx.arc(x+9,y-4,4,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x-9,y-6,2,0,Math.PI*2);ctx.arc(x+7,y-6,2,0,Math.PI*2);ctx.fill();
+  // 外圈光晕
+  ctx.save();ctx.globalAlpha=0.2+Math.sin(Date.now()/400)*0.05;var gl=ctx.createRadialGradient(x,y,0,x,y,50);gl.addColorStop(0,hd.color);gl.addColorStop(1,'transparent');ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,50,0,Math.PI*2);ctx.fill();ctx.restore();
+  // 阴影
+  ctx.fillStyle='rgba(0,0,0,0.4)';ctx.beginPath();ctx.ellipse(x,y+sz*0.9,sz*0.8,sz*0.2,0,0,Math.PI*2);ctx.fill();
+  // 身体 - 更精致渐变
+  var g=ctx.createRadialGradient(x-sz*0.15,y-sz*0.15,sz*0.05,x,y,sz*1.05);
+  g.addColorStop(0,'#fff');g.addColorStop(0.15,shade(hd.color,30));g.addColorStop(0.5,hd.color);g.addColorStop(1,shade(hd.color,-40));
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
+  // 外圈描边 + 发光
+  ctx.save();ctx.shadowColor=hd.color;ctx.shadowBlur=18;
+  ctx.strokeStyle='#fff';ctx.lineWidth=2.5;ctx.stroke();ctx.restore();
+  // 脸部
+  ctx.fillStyle='#ffe0b2';ctx.beginPath();ctx.arc(x,y-2,sz*0.58,0,Math.PI*2);ctx.fill();
+  // 眼睛
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x-8,y-5,7,8,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(x+8,y-5,7,8,0,0,Math.PI*2);ctx.fill();
+  // 瞳孔
+  ctx.fillStyle='#333';ctx.beginPath();ctx.arc(x-7,y-4,4,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(x+9,y-4,4,0,Math.PI*2);ctx.fill();
+  // 眼睛高光
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x-9,y-6,2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(x+7,y-6,2,0,Math.PI*2);ctx.fill();
+  // 嘴巴 - 微笑
+  ctx.strokeStyle='#c97a5a';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y+4,6,0.1*Math.PI,0.9*Math.PI);ctx.stroke();
+  // 类型标签
   var typeLabel=hd.type==='str'?'力量':(hd.type==='agi'?'敏捷':'智力');
-  ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.fillStyle=hd.type==='str'?'#ff1744':(hd.type==='agi'?'#2979ff':'#ffd600');ctx.fillText('['+typeLabel+']',x,y-sz-18);
-  ctx.font='bold 11px Arial';ctx.fillStyle=hd.color;ctx.fillText(hd.name+' Lv.'+hero.lv,x,y+sz+18);
-  // 被动技能显示
-  ctx.font='9px Arial';ctx.fillStyle='#aaa';ctx.fillText(hd.passive,x,y+sz+30);
-  var bw=48;ctx.fillStyle='#222';ctx.fillRect(x-bw/2,y-32,bw,5);ctx.fillStyle=hero.hp>hero.maxHp*0.5?'#4caf50':'#f44336';ctx.fillRect(x-bw/2,y-32,bw*(hero.hp/hero.maxHp),5);
-  ctx.fillStyle='#1a1a3a';ctx.fillRect(x-bw/2,y-26,bw,3);ctx.fillStyle='#2196f3';ctx.fillRect(x-bw/2,y-26,bw*(hero.mp/hero.maxMp),3);
+  var typeColor=hd.type==='str'?'#ff1744':(hd.type==='agi'?'#2979ff':'#ffd600');
+  ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.fillStyle=typeColor;
+  ctx.fillText('['+typeLabel+']',x,y-sz-20);
+  // 名字
+  ctx.font='bold 12px Arial';ctx.fillStyle=hd.color;
+  // 名字阴影
+  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillText(hd.name+' Lv.'+hero.lv,x+1,y+sz+19);
+  ctx.fillStyle=hd.color;ctx.fillText(hd.name+' Lv.'+hero.lv,x,y+sz+18);
+  // 被动
+  ctx.font='9px Arial';ctx.fillStyle='rgba(170,170,170,0.8)';ctx.fillText(hd.passive,x,y+sz+30);
+  // 血条 - 带背景和高光
+  var bw=52,bh=6;
+  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-bw/2-1,y-35,bw+2,bh+2);
+  var hpPct=hero.hp/hero.maxHp;
+  var hpColor=hpPct>0.5?'#4caf50':(hpPct>0.25?'#ff9800':'#f44336');
+  ctx.fillStyle=hpColor;ctx.fillRect(x-bw/2,y-34,bw*hpPct,bh);
+  ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillRect(x-bw/2,y-34,bw*hpPct,bh*0.35);
+  // 蓝条
+  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-bw/2-1,y-27,bw+2,4);
+  ctx.fillStyle='#2196f3';ctx.fillRect(x-bw/2,y-26,bw*(hero.mp/hero.maxMp),3);
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillRect(x-bw/2,y-26,bw*(hero.mp/hero.maxMp),1.5);
 }
 
 function draw(){
@@ -536,7 +826,7 @@ function update(){
   for(var i=particles.length-1;i>=0;i--)if(!particles[i].update())particles.splice(i,1);
   for(var i=lastingEffects.length-1;i>=0;i--)if(!lastingEffects[i].update())lastingEffects.splice(i,1);
   if(dungeonActive){dungeonTimer-=0.016;if(dungeonTimer<=0)failDungeon();}
-  waveT-=0.016;if(waveT<=0){wave++;waveT=22+wave;spawnWave();}
+  waveT-=0.016;if(waveT<=0){wave++;waveT=0.5;spawnWave();}
   if(shake>0)shake*=0.85;if(shake<0.5)shake=0;checkEnd();updateUI();
 }
 function loop(){update();draw();requestAnimationFrame(loop);}
@@ -545,10 +835,14 @@ function loop(){update();draw();requestAnimationFrame(loop);}
 function init(){
   canvas=document.getElementById('game');ctx=canvas.getContext('2d');
   var app=document.getElementById('app');W=canvas.width=app.clientWidth;H=canvas.height=app.clientHeight;
-  initAudio();requestAnimationFrame(loop);setupEvents();
+  initAudio();initHeroSkills();requestAnimationFrame(loop);setupEvents();
   document.addEventListener('click',initAudio,{once:true});document.addEventListener('touchstart',initAudio,{once:true});
-  // 启动新手教程
-  checkTutorial();
+  // 先显示英雄选择，选完再进入教程
+  showHeroSelect();
+  // 教程在英雄选择后触发
+  setTimeout(function(){
+    if(state==='playing') checkTutorial();
+  }, 500);
 }
 
 function setupEvents(){
