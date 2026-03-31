@@ -44,26 +44,65 @@ var MTYPES = {
   boss: {col:'#ffd600',hpM:8,spdM:0.7}
 };
 
-// 副本系统
+// 副本系统 - 重新平衡数值
 var DUNGEONS = [
   {name:'金币副本',icon:'💰',type:'gold'},
   {name:'经验副本',icon:'⭐',type:'exp'},
   {name:'Boss挑战',icon:'👹',type:'boss'}
 ];
+
+// 新版副本数值表（10级全量数据）
+var DUNGEON_STATS = {
+  gold: [
+    {hp:200,   time:15, reward:80,    exp:30,   cost:30},
+    {hp:500,   time:18, reward:160,   exp:60,   cost:60},
+    {hp:1000,  time:20, reward:280,   exp:100,  cost:100},
+    {hp:2000,  time:22, reward:450,   exp:160,  cost:160},
+    {hp:4000,  time:25, reward:700,   exp:250,  cost:250},
+    {hp:7000,  time:28, reward:1100,  exp:400,  cost:400},
+    {hp:12000, time:30, reward:1700,  exp:600,  cost:600},
+    {hp:20000, time:33, reward:2500,  exp:900,  cost:900},
+    {hp:35000, time:36, reward:3800,  exp:1400, cost:1400},
+    {hp:60000, time:40, reward:5500,  exp:2000, cost:2000}
+  ],
+  exp: [
+    {hp:150,   time:15, reward:0,     exp:50,   cost:20},
+    {hp:400,   time:18, reward:0,     exp:100,  cost:45},
+    {hp:800,   time:20, reward:0,     exp:170,  cost:80},
+    {hp:1600,  time:22, reward:0,     exp:280,  cost:130},
+    {hp:3500,  time:25, reward:0,     exp:400,  cost:180},
+    {hp:6000,  time:28, reward:0,     exp:650,  cost:300},
+    {hp:10000, time:30, reward:0,     exp:1000, cost:450},
+    {hp:17000, time:33, reward:0,     exp:1500, cost:700},
+    {hp:30000, time:36, reward:0,     exp:2200, cost:1000},
+    {hp:50000, time:38, reward:0,     exp:3000, cost:1500}
+  ],
+  boss: [
+    {hp:500,   time:20, reward:100,   exp:40,   cost:50},
+    {hp:1200,  time:22, reward:250,   exp:90,   cost:100},
+    {hp:2500,  time:24, reward:450,   exp:150,  cost:180},
+    {hp:5000,  time:26, reward:750,   exp:250,  cost:280},
+    {hp:8000,  time:28, reward:800,   exp:350,  cost:300},
+    {hp:15000, time:30, reward:1500,  exp:550,  cost:500},
+    {hp:25000, time:33, reward:2500,  exp:850,  cost:750},
+    {hp:40000, time:36, reward:3800,  exp:1300, cost:1100},
+    {hp:70000, time:40, reward:5500,  exp:2000, cost:1700},
+    {hp:100000,time:45, reward:6000,  exp:2500, cost:2500}
+  ]
+};
+
+function getDungeonStats(d, level) {
+  var l = Math.max(1, Math.min(level, 10)) - 1; // 0-indexed
+  var table = DUNGEON_STATS[d.type];
+  if (!table || !table[l]) return {hp:100, time:15, reward:0, exp:10, cost:10};
+  return table[l];
+}
+
+// 副本状态变量
 var dungeonLevels = {gold:1,exp:1,boss:1};
 var dungeonCompleted = {};
 var dungeonActive = null, dungeonEnemy = null, dungeonTimer = 0;
 var selectedDungeon = null;
-
-// 经验表
-var EXP_TABLE = [50,100,150,200,300,400,600,800,1200,2000];
-
-function getDungeonStats(d,level) {
-  var l = level, baseExp = EXP_TABLE[Math.min(l-1,9)];
-  if(d.type==='gold') return {hp:80*l*l+l*50,time:15+l*2,reward:30*l*l+l*20,exp:baseExp,cost:Math.max(5,Math.floor(5*l*l*0.3))};
-  if(d.type==='exp') return {hp:60*l*l+l*40,time:18+l*2,reward:0,exp:Math.floor(baseExp*1.5),cost:Math.max(8,Math.floor(8*l*l*0.3))};
-  return {hp:150*l*l+l*100,time:25+l*3,reward:50*l*l+l*30,exp:Math.floor(baseExp*1.2),cost:Math.max(10,Math.floor(10*l*l*0.3))};
-}
 
 // 英雄
 var hero = {
@@ -85,6 +124,151 @@ var enemies=[], particles=[], effects=[], lastingEffects=[];
 var audioCtx=null;
 function initAudio(){if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
 function playSound(t){if(!audioCtx)return;try{var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=t==='ult'?200:400;g.gain.value=0.15;g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.15);o.start();o.stop(audioCtx.currentTime+0.15);}catch(e){}}
+
+// ====== 新手教程系统 ======
+var TUTORIAL_STEPS = [
+  {
+    title: '⚔️ 欢迎来到魔兽RPG！',
+    desc: '在无尽的怪物浪潮中生存下来！\n点击任意位置开始教程',
+    highlight: null,
+    arrow: null,
+    pos: 'center'
+  },
+  {
+    title: '📊 状态栏',
+    desc: '这里显示你的等级、金币、波次\n击杀数和场上怪物数\n怪物超过100个就GG！',
+    highlight: '.top',
+    arrow: 'down',
+    pos: 'top'
+  },
+  {
+    title: '🦸 英雄面板',
+    desc: '右侧显示你的职业和属性\n❤️ 生命值 | 💙 魔法值 | ⭐ 经验值\nHP归零也会Game Over！',
+    highlight: '.side',
+    arrow: 'left',
+    pos: 'right'
+  },
+  {
+    title: '💫 释放技能',
+    desc: '点击底部技能按钮释放大招！\n💫小必杀：范围伤害，CD短\n⚡大必杀：毁天灭地，CD长\n释放技能消耗MP，MP会自动恢复',
+    highlight: '.bot',
+    arrow: 'up',
+    pos: 'bottom'
+  },
+  {
+    title: '🏰 移动塔位',
+    desc: '点击地图上的塔可以移动英雄！\n不同位置打不同路线的怪\n移动有3秒冷却时间',
+    highlight: null,
+    arrow: null,
+    pos: 'center'
+  },
+  {
+    title: '💰 金币与副本',
+    desc: '打怪获得金币 → 金币挑战副本\n副本产出海量经验！\n点击⚔️副本按钮进入挑战\n\n🎮 准备好了？开始战斗吧！',
+    highlight: '#btn-dungeon',
+    arrow: 'up',
+    pos: 'bottom'
+  }
+];
+
+var tutorialStep = -1;
+var tutorialDone = false;
+
+function checkTutorial() {
+  if (localStorage.getItem('warcraft_tutorial_done')) {
+    tutorialDone = true;
+    return;
+  }
+  startTutorial();
+}
+
+function startTutorial() {
+  tutorialStep = 0;
+  state = 'tutorial';
+  showTutorialStep();
+}
+
+function showTutorialStep() {
+  var overlay = document.getElementById('tutorial-overlay');
+  var step = TUTORIAL_STEPS[tutorialStep];
+  if (!step) { endTutorial(); return; }
+
+  // 清除旧高亮
+  var oldHL = document.querySelector('.tutorial-highlight');
+  if (oldHL) oldHL.remove();
+
+  // 显示遮罩
+  overlay.style.display = 'flex';
+  document.getElementById('tut-title').textContent = step.title;
+  document.getElementById('tut-desc').textContent = step.desc;
+  document.getElementById('tut-counter').textContent = (tutorialStep + 1) + '/' + TUTORIAL_STEPS.length;
+
+  // 高亮区域
+  if (step.highlight) {
+    var el = document.querySelector(step.highlight);
+    if (el) {
+      var rect = el.getBoundingClientRect();
+      var hl = document.createElement('div');
+      hl.className = 'tutorial-highlight';
+      hl.style.cssText = 'position:fixed;border:3px solid #ffd700;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.82),0 0 20px rgba(255,215,0,0.5);z-index:999;pointer-events:none;transition:all 0.3s;';
+      hl.style.left = (rect.left - 6) + 'px';
+      hl.style.top = (rect.top - 6) + 'px';
+      hl.style.width = (rect.width + 12) + 'px';
+      hl.style.height = (rect.height + 12) + 'px';
+      document.body.appendChild(hl);
+
+      // 箭头
+      if (step.arrow) {
+        var arrow = document.createElement('div');
+        arrow.className = 'tutorial-arrow';
+        var cx = rect.left + rect.width / 2;
+        var cy = rect.top + rect.height / 2;
+        var arrowCSS = 'position:fixed;z-index:1000;pointer-events:none;font-size:32px;animation:arrowBounce 0.8s infinite;';
+        if (step.arrow === 'down') { arrowCSS += 'left:' + (cx - 16) + 'px;top:' + (rect.top - 50) + 'px;'; arrow.textContent = '👇'; }
+        if (step.arrow === 'up') { arrowCSS += 'left:' + (cx - 16) + 'px;top:' + (rect.bottom + 10) + 'px;'; arrow.textContent = '👆'; }
+        if (step.arrow === 'left') { arrowCSS += 'left:' + (rect.left - 50) + 'px;top:' + (cy - 16) + 'px;'; arrow.textContent = '👉'; }
+        arrow.style.cssText = arrowCSS;
+        document.body.appendChild(arrow);
+      }
+    }
+  }
+
+  // 按钮文字
+  var btn = document.getElementById('tut-next');
+  btn.textContent = tutorialStep === TUTORIAL_STEPS.length - 1 ? '🎮 开始游戏！' : '下一步 ➡️';
+}
+
+function nextTutorialStep() {
+  // 清理
+  var hl = document.querySelector('.tutorial-highlight');
+  if (hl) hl.remove();
+  var ar = document.querySelector('.tutorial-arrow');
+  if (ar) ar.remove();
+
+  tutorialStep++;
+  if (tutorialStep >= TUTORIAL_STEPS.length) {
+    endTutorial();
+  } else {
+    showTutorialStep();
+  }
+}
+
+function endTutorial() {
+  tutorialDone = true;
+  localStorage.setItem('warcraft_tutorial_done', '1');
+  var overlay = document.getElementById('tutorial-overlay');
+  overlay.style.display = 'none';
+  var hl = document.querySelector('.tutorial-highlight');
+  if (hl) hl.remove();
+  var ar = document.querySelector('.tutorial-arrow');
+  if (ar) ar.remove();
+  state = 'playing';
+  showToast('教程完成！祝你好运！');
+}
+
+function skipTutorial() {
+  endTutorial();
+}
 
 // ====== 敌人类 ======
 function Enemy(pk,tk){
@@ -212,7 +396,8 @@ function showDungeonMenu(){
   for(var i=0;i<DUNGEONS.length;i++){
     var d=DUNGEONS[i],lvl=dungeonLevels[d.type],s=getDungeonStats(d,lvl);
     var card=document.createElement('div');card.className='card';card.style.cursor='pointer';
-    card.innerHTML='<div class="icon">'+d.icon+'</div><div class="name">'+d.name+'</div><div class="level">Lv.1-'+lvl+'</div><div class="desc">'+s.cost+'金 | '+s.exp+'EXP</div>';
+    // 显示当前可挑战的最高等级和消耗
+    card.innerHTML='<div class="icon">'+d.icon+'</div><div class="name">'+d.name+'</div><div class="level">Lv.1-'+lvl+'</div><div class="desc" style="color:#ffd700;font-size:11px;font-weight:bold;">💰'+s.cost+'金 → ⭐'+s.exp+'EXP</div><div class="desc">挑战副本获取海量经验！</div>';
     (function(dd){card.onclick=function(){selectedDungeon=dd;showLevelSelect();};})(d);
     list.appendChild(card);
   }
@@ -225,11 +410,12 @@ function showLevelSelect(){
   grid.innerHTML='';var maxLvl=dungeonLevels[selectedDungeon.type];
   for(var i=1;i<=10;i++){
     var btn=document.createElement('div'),key=selectedDungeon.type+'_'+i,completed=dungeonCompleted[key],locked=i>maxLvl;
+    var s=getDungeonStats(selectedDungeon,i);
     btn.className='lvl-btn'+(locked?' locked':'')+(completed?' completed':'');
-    btn.textContent='Lv.'+i+(completed?' ✓':'');
+    btn.innerHTML='Lv.'+i+(completed?' ✓':'')+'<div style="font-size:8px;color:#ffd700;margin-top:2px;">💰'+s.cost+'</div>';
     if(i<=maxLvl&&!completed){
       (function(dType,lvl){btn.onclick=function(){var d=null;for(var j=0;j<DUNGEONS.length;j++)if(DUNGEONS[j].type===dType){d=DUNGEONS[j];break;}
-      if(d){var s=getDungeonStats(d,lvl);if(gold<s.cost){showToast('金币不足!需'+s.cost+'金');return;}enterDungeon(d,lvl);}};})(selectedDungeon.type,i);
+      if(d){var s=getDungeonStats(d,lvl);if(gold<s.cost){showToast('金币不足!需'+s.cost+'金，当前'+gold+'金');return;}enterDungeon(d,lvl);}};})(selectedDungeon.type,i);
     }grid.appendChild(btn);
   }panel.style.display='block';
 }
@@ -361,6 +547,8 @@ function init(){
   var app=document.getElementById('app');W=canvas.width=app.clientWidth;H=canvas.height=app.clientHeight;
   initAudio();requestAnimationFrame(loop);setupEvents();
   document.addEventListener('click',initAudio,{once:true});document.addEventListener('touchstart',initAudio,{once:true});
+  // 启动新手教程
+  checkTutorial();
 }
 
 function setupEvents(){
