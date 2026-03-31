@@ -190,8 +190,9 @@ var DUNGEON_STATS = {
 function getDungeonStats(d, level) {
   var l = Math.max(1, Math.min(level, 10)) - 1; // 0-indexed
   var table = DUNGEON_STATS[d.type];
-  if (!table || !table[l]) return {hp:100, time:15, reward:0, exp:10, cost:10};
-  return table[l];
+  if (!table || !table[l]) return {hp:300, time:15, reward:0, exp:10, cost:10};
+  var s=table[l];
+  return {hp:s.hp*3, time:s.time, reward:s.reward, exp:s.exp, cost:s.cost}; // HP×3
 }
 
 // 副本状态变量
@@ -242,7 +243,66 @@ function initHeroSkills(){
 function hPos() { return {x:TOWERS[hero.towerIdx].x*W, y:TOWERS[hero.towerIdx].y*H}; }
 function hData() { return HEROES[hero.cls]||HEROES.warrior; }
 
-var enemies=[], particles=[], effects=[], lastingEffects=[];
+var enemies=[], particles=[], effects=[], lastingEffects=[], neutrals=[];
+
+// ====== 中立怪系统 ======
+function NeutralCreature(type){
+  var path=Math.random()<0.5?PATHS.inner:PATHS.outer;
+  this.path=path;this.wp=0;this.type=type; // 'gold' or 'exp'
+  this.x=path[0].x+(Math.random()-0.5)*0.08;this.y=path[0].y+(Math.random()-0.5)*0.08;
+  this.maxHp=80+wave*20;this.hp=this.maxHp;
+  this.def=0;this.spd=0.0015; // 移动较慢
+  this.sz=0.035;this.alive=true;this.spawnTime=Date.now();
+  // 奖励
+  if(type==='gold'){this.goldReward=30+wave*8;this.expReward=0;this.col='#ffd700';this.icon='💰';}
+  else{this.goldReward=0;this.expReward=25+wave*6;this.col='#4fc3f7';this.icon='⭐';}
+}
+NeutralCreature.prototype.update=function(){
+  if(!this.alive)return false;
+  var t=this.path[this.wp],dx=t.x-this.x,dy=t.y-this.y,d=Math.sqrt(dx*dx+dy*dy);
+  if(d<this.spd+0.01)this.wp=(this.wp+1)%this.path.length;
+  else{this.x+=(dx/d)*this.spd;this.y+=(dy/d)*this.spd;}
+  return true;
+};
+NeutralCreature.prototype.draw=function(){
+  if(!this.alive)return;
+  var x=this.x*W,y=this.y*H,sz=this.sz*Math.min(W,H);
+  // 光晕 - 脉冲
+  ctx.save();ctx.globalAlpha=0.2+Math.sin(Date.now()/300)*0.1;
+  var gl=ctx.createRadialGradient(x,y,0,x,y,sz*2);gl.addColorStop(0,this.col);gl.addColorStop(1,'transparent');
+  ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,sz*2,0,Math.PI*2);ctx.fill();ctx.restore();
+  // 身体
+  ctx.save();ctx.shadowColor=this.col;ctx.shadowBlur=12;
+  ctx.fillStyle=this.col;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=2;ctx.stroke();ctx.restore();
+  // 图标
+  ctx.font=(sz*1.2)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(this.icon,x,y);
+  // 血条
+  var bw=sz*2.2,by=y-sz-8;ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(x-bw/2,by,bw,4);
+  ctx.fillStyle=this.col;ctx.fillRect(x-bw/2,by,bw*(this.hp/this.maxHp),4);
+  // 提示文字
+  ctx.font='bold 9px Arial';ctx.fillStyle='#fff';ctx.fillText('点击攻击',x,y+sz+12);
+};
+NeutralCreature.prototype.hitTest=function(mx,my){
+  var x=this.x*W,y=this.y*H,sz=this.sz*Math.min(W,H)*1.5;
+  var dx=mx-x,dy=my-y;return (dx*dx+dy*dy)<sz*sz;
+};
+NeutralCreature.prototype.die=function(){
+  this.alive=false;
+  if(this.goldReward>0){gold+=this.goldReward;addP(this.x*W,this.y*H,'+'+this.goldReward+'金!','#ffd700',18);}
+  if(this.expReward>0){gainExp(this.expReward);addP(this.x*W,this.y*H,'+'+this.expReward+'EXP!','#4fc3f7',18);}
+  for(var j=0;j<10;j++){var a=j*36*Math.PI/180;addP(this.x*W+Math.cos(a)*15,this.y*H+Math.sin(a)*15,'✦',this.col,12);}
+};
+
+// 生成中立怪
+function spawnNeutrals(){
+  if(wave<5)return;
+  var count=1+Math.floor((wave-5)/3); // W5=1只, W8=2只, W11=3只...
+  for(var i=0;i<count;i++){
+    var type=Math.random()<0.5?'gold':'exp';
+    neutrals.push(new NeutralCreature(type));
+  }
+}
 
 // ====== 音效 ======
 var audioCtx=null;
@@ -401,7 +461,7 @@ function Enemy(pk,tk){
   this.x=path[0].x+(Math.random()-0.5)*0.05;this.y=path[0].y+(Math.random()-0.5)*0.05;
   this.boss=tk==='boss';var wm=1+wave*0.1;
   this.hp=(50+wave*12)*type.hpM*wm;this.maxHp=this.hp;
-  this.def=3+wave*(this.boss?2:0.8);this.spd=(pk==='inner'?0.004:0.0025)*type.spdM;
+  this.def=3+wave*(this.boss?2:0.8);this.spd=(pk==='inner'?0.004:0.0025)*type.spdM*0.7;
   this.exp=Math.floor((20+wave*8)*(this.boss?5:1));
   this.sz=this.boss?0.04:(tk==='elite'?0.028:(tk==='tank'?0.03:0.02));
   this.col=type.col;
@@ -849,7 +909,7 @@ function levelUp(){hero.lv++;hero.expNeed=Math.floor(100*Math.pow(hero.lv,1.15))
   var hd=hData();if(hd.extraPassive&&hd.extraPassive.indexOf('剑意')>=0){hero.atk+=1;hero.killStacks=Math.min((hero.killStacks||0)+1,50);}
   var hp=hPos();addP(hp.x,hp.y-35,'LEVEL UP!','#ffd700',20);playSound('ult');
   var hp=hPos();addP(hp.x,hp.y-35,'LEVEL UP!','#ffd700',20);playSound('ult');
-  if(hero.lv===5&&hero.promo===0)showPromo();if(hero.lv===10&&hero.promo===1)showPromo();
+  if(hero.lv===10&&hero.promo===0)showPromo();if(hero.lv===20&&hero.promo===1)showPromo();if(hero.lv===30&&hero.promo===2)showPromo();
 }
 
 function showPromo(){
@@ -876,9 +936,14 @@ function spawnWave(){
   var ann=document.getElementById('wave-ann');ann.className=boss?'wave-ann boss':'wave-ann';ann.innerHTML=boss?'⚠️ BOSS ⚠️':'WAVE '+wave;ann.style.display='block';setTimeout(function(){ann.style.display='none';},2000);
   var n=0;var iv=setInterval(function(){if(n>=count||state==='gameover'){clearInterval(iv);return;}
     if(boss&&n===0)enemies.push(new Enemy('outer','boss'));else{var pk=Math.random()<0.5?'inner':'outer',r=Math.random(),tk='normal';if(wave>2&&r<0.15)tk='fast';else if(wave>4&&r<0.25)tk='tank';else if(wave>6&&r<0.32)tk='elite';enemies.push(new Enemy(pk,tk));}n++;},500);
+  spawnNeutrals(); // 生成中立怪
 }
 
-function checkEnd(){if(enemies.length>=300)gameOver('敌人超过300!');if(hero.hp<=0)gameOver('英雄阵亡!');}
+function checkEnd(){
+  if(kills>=5000)gameOver('🏆 胜利！击杀5000敌人！');
+  if(enemies.length>=300)gameOver('敌人超过300!');
+  if(hero.hp<=0)gameOver('英雄阵亡!');
+}
 function gameOver(r){state='gameover';document.getElementById('go-wave').textContent=wave;document.getElementById('go-kills').textContent=kills;document.getElementById('go-reason').textContent=r;document.getElementById('gameover').classList.add('show');}
 
 // ====== UI ======
@@ -1018,6 +1083,7 @@ function drawHero(){
 function draw(){
   ctx.clearRect(0,0,W,H);ctx.save();if(shake>0)ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
   drawMap();for(var i=0;i<lastingEffects.length;i++)lastingEffects[i].draw();
+  for(var i=0;i<neutrals.length;i++)neutrals[i].draw(); // 中立怪
   for(var i=0;i<enemies.length;i++)enemies[i].draw();if(dungeonEnemy)dungeonEnemy.draw();
   drawHero();for(var i=0;i<effects.length;i++)effects[i].draw();for(var i=0;i<particles.length;i++)particles[i].draw();ctx.restore();
 }
@@ -1035,6 +1101,8 @@ function update(){
     addP(kx,ky,'+'+enemies[i].exp+'EXP','#4fc3f7',12);enemies.splice(i,1);}}
   for(var i=particles.length-1;i>=0;i--)if(!particles[i].update())particles.splice(i,1);
   for(var i=lastingEffects.length-1;i>=0;i--)if(!lastingEffects[i].update())lastingEffects.splice(i,1);
+  // 更新中立怪
+  for(var i=neutrals.length-1;i>=0;i--){if(!neutrals[i].update()||!neutrals[i].alive)neutrals.splice(i,1);}
   if(dungeonActive){dungeonTimer-=0.016;if(dungeonTimer<=0)failDungeon();}
   waveT-=0.016;if(waveT<=0){wave++;waveT=10;spawnWave();}
   if(shake>0)shake*=0.85;if(shake<0.5)shake=0;checkEnd();updateUI();
@@ -1062,12 +1130,19 @@ function setupEvents(){
   var sks=document.querySelectorAll('.sk');for(var i=0;i<sks.length;i++){(function(btn){var fn=function(e){e.preventDefault();e.stopPropagation();if(state==='playing')useSkill(parseInt(btn.dataset.skill));};btn.addEventListener('touchstart',fn);btn.addEventListener('click',fn);})(sks[i]);}
   canvas.addEventListener('click',function(e){
     if(state!=='playing')return;var rect=canvas.getBoundingClientRect(),x=(e.clientX-rect.left)*(W/rect.width),y=(e.clientY-rect.top)*(H/rect.height);
+    // 攻击中立怪
+    for(var i=0;i<neutrals.length;i++){
+      if(neutrals[i].alive&&neutrals[i].hitTest(x,y)){
+        var n=neutrals[i],d=Math.max(1,Math.floor(hero.atk*1.5*hero.buff));
+        n.hp-=d;addP(n.x*W,n.y*H-20,'-'+d,'#fff',14);playSound('hit');
+        if(n.hp<=0)n.die();
+        return;
+      }
+    }
     var hp=hPos();if(dist(x,y,hp.x,hp.y)<35){showRangeTimer=120;return;}if(moveCd>0)return;
     for(var i=0;i<TOWERS.length;i++){var t=TOWERS[i],tx=t.x*W,ty=t.y*H;if(dist(x,y,tx,ty)<35){if(hero.towerIdx!==i){hero.towerIdx=i;moveCd=3;addP(tx,ty-30,'移动!','#fff',14);playSound('ult');}return;}}
   });
   document.getElementById('btn-dungeon').onclick=function(e){if(e){e.preventDefault();e.stopPropagation();}if(state==='playing'&&!dungeonActive)showDungeonMenu();else if(dungeonActive)showToast('已在副本中!');return false;};
-  document.getElementById('btn-lvl').onclick=showLevelSelect;
-  document.getElementById('btn-close-dungeon').onclick=function(){document.getElementById('dungeon-modal').classList.remove('show');state='playing';};
 }
 
 window.onload=init;
