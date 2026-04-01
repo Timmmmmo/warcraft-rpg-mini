@@ -89,7 +89,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
       </div>
     </div>
     <div class="move-cd" id="move-cd"></div>
-    <div class="mid"><div class="mid-btn" id="btn-dungeon">⚔️ 副本</div><div class="mid-btn" id="btn-ad" onclick="watchAd()" style="border-color:#4a90d9;">📺 增加魔法</div></div>
+    <div class="mid"><div class="mid-btn" id="btn-dungeon">⚔️ 副本</div><div class="mid-btn" id="btn-collection" style="border-color:#ffd700;">📚 图鉴</div><div class="mid-btn" id="btn-ad" onclick="watchAd()" style="border-color:#4a90d9;">📺 增加魔法</div></div>
     <div class="bot">
       <div class="sk on" data-skill="0"><span class="ic">💫</span><span class="nm">小必杀</span></div>
       <div class="sk on" data-skill="1"><span class="ic">⚡</span><span class="nm">大必杀</span></div>
@@ -131,6 +131,25 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
       <div style="color:#aaa;font-size:13px;margin-bottom:15px;">恢复全部魔法值</div>
       <div id="ad-timer" style="font-size:48px;color:#4a90d9;font-weight:bold;">3</div>
       <div style="color:#666;font-size:11px;margin-top:8px;">秒后恢复...</div>
+    </div>
+  </div>
+
+  <!-- 塔位操作弹窗 -->
+  <div class="modal" id="tower-modal" style="z-index:200;">
+    <div style="background:#1a1a2e;border:3px solid #ffd700;border-radius:20px;padding:25px;text-align:center;max-width:320px;max-height:70vh;overflow-y:auto;" id="tower-modal-content">
+    </div>
+  </div>
+
+  <!-- 图鉴/收集弹窗 -->
+  <div class="modal" id="collection-modal" style="z-index:200;">
+    <div style="background:#1a1a2e;border:3px solid #ffd700;border-radius:20px;padding:20px;text-align:center;max-width:380px;max-height:80vh;overflow-y:auto;">
+      <div style="color:#ffd700;font-size:22px;font-weight:bold;margin-bottom:4px;text-shadow:2px 2px 4px #000;">📚 英雄图鉴</div>
+      <div id="collection-count" style="color:#aaa;font-size:12px;margin-bottom:10px;"></div>
+      <div id="collection-synergy"></div>
+      <div id="collection-grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:8px;"></div>
+      <div class="btns" style="margin-top:12px;">
+        <button onclick="closeCollectionModal()">返回游戏</button>
+      </div>
     </div>
   </div>
   <div id="tutorial-overlay" style="display:none;position:fixed;inset:0;z-index:1000;flex-direction:column;align-items:center;justify-content:center;">

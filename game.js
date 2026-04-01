@@ -239,6 +239,133 @@ var dungeonCompleted = {};
 var dungeonActive = null, dungeonEnemy = null, dungeonTimer = 0;
 var selectedDungeon = null;
 
+// ====== 收集 & 连横系统 ======
+var heroCollection = []; // 玩家收集到的英雄 key 列表
+var towerSlots = [null, null, null, null, null]; // 每个塔位放的英雄 key
+var heroCards = []; // 地面上浮动的英雄卡牌
+var lastCardDropTime = 0;
+var synergyInfo = null; // 当前连横信息 {type, heroes, bonus}
+var cardDropInterval = 10000; // 10秒检查一次
+var cardDropChance = 0.01; // 1%概率
+
+// 英雄卡牌类
+function HeroCard(classKey){
+  this.classKey = classKey;
+  this.x = 0.15 + Math.random() * 0.7;
+  this.y = 0.2 + Math.random() * 0.6;
+  this.spawnTime = Date.now();
+  this.alive = true;
+  this.sz = 0.03;
+  this.floatOffset = Math.random() * Math.PI * 2;
+}
+HeroCard.prototype.update = function(){
+  if(!this.alive) return false;
+  if(Date.now() - this.spawnTime > 30000) { this.alive = false; return false; }
+  return true;
+};
+HeroCard.prototype.draw = function(){
+  if(!this.alive) return;
+  var x = this.x * W, y = this.y * H + Math.sin(Date.now()/500 + this.floatOffset) * 6;
+  var sz = this.sz * Math.min(W, H);
+  var h = HEROES[this.classKey];
+  if(!h) return;
+  var remain = Math.max(0, Math.ceil(30 - (Date.now()-this.spawnTime)/1000));
+  // 光晕
+  ctx.save();
+  ctx.globalAlpha = 0.3 + Math.sin(Date.now()/300) * 0.15;
+  var gl = ctx.createRadialGradient(x, y, 0, x, y, sz*2.5);
+  gl.addColorStop(0, h.color); gl.addColorStop(1, 'transparent');
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y, sz*2.5, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  // 卡牌背景
+  ctx.save();
+  ctx.shadowColor = h.color; ctx.shadowBlur = 12;
+  ctx.fillStyle = 'rgba(20,20,40,0.9)';
+  var cw = sz*1.6, ch = sz*2.2;
+  ctx.beginPath();
+  ctx.roundRect(x-cw, y-ch, cw*2, ch*2, 6);
+  ctx.fill();
+  ctx.strokeStyle = h.color; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+  // 英雄图标
+  var heroImg = IMAGES['hero_'+this.classKey];
+  if(heroImg){
+    ctx.drawImage(heroImg, x-sz, y-sz*1.2, sz*2, sz*2);
+  } else {
+    ctx.font = (sz*1.4)+'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(h.icon, x, y-sz*0.2);
+  }
+  // 名字
+  ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+  ctx.fillStyle = h.color; ctx.fillText(h.name, x, y+sz+4);
+  // 类型标签
+  var typeName = h.type==='str'?'力量':(h.type==='agi'?'敏捷':'智力');
+  ctx.font = '8px Arial'; ctx.fillStyle = '#aaa'; ctx.fillText(typeName, x, y+sz+14);
+  // 倒计时
+  ctx.font = 'bold 9px Arial'; ctx.fillStyle = remain<=10?'#f44336':'#ffd700';
+  ctx.fillText(remain+'s', x, y-ch-6);
+  // 提示
+  ctx.font = '8px Arial'; ctx.fillStyle = '#fff'; ctx.fillText('✨ 点击收集', x, y+sz+24);
+};
+HeroCard.prototype.hitTest = function(mx, my){
+  var x = this.x*W, y = this.y*H, sz = this.sz*Math.min(W,H)*2.5;
+  var dx = mx-x, dy = my-y; return (dx*dx+dy*dy) < sz*sz;
+};
+
+// 检查连横
+function checkSynergy(){
+  synergyInfo = null;
+  // 统计每个塔位上英雄的类型
+  var typeCount = {str:[], agi:[], int:[]};
+  for(var i = 0; i < towerSlots.length; i++){
+    var key = towerSlots[i];
+    if(!key) continue;
+    var h = HEROES[key];
+    if(h && typeCount[h.type]) typeCount[h.type].push({tower:i, key:key});
+  }
+  // 检查是否有3个同类型
+  for(var t in typeCount){
+    if(typeCount[t].length >= 3){
+      synergyInfo = {type: t, heroes: typeCount[t].slice(0,3), bonus: 0.5}; // +50%攻击力
+      return;
+    }
+  }
+}
+
+// 英雄收集（去重）
+function collectHero(classKey){
+  if(heroCollection.indexOf(classKey) < 0){
+    heroCollection.push(classKey);
+    var h = HEROES[classKey];
+    showToast('🎉 收集到 '+h.icon+' '+h.cnName+'（'+h.name+'）');
+    playSound('ult');
+  } else {
+    // 重复获得 → 小量经验补偿
+    gainExp(20);
+    showToast('已有 '+HEROES[classKey].cnName+'，补偿20EXP');
+  }
+}
+
+// 放置英雄到塔位
+function placeHeroOnTower(towerIdx, classKey){
+  if(towerSlots[towerIdx]) return false; // 已有英雄
+  towerSlots[towerIdx] = classKey;
+  checkSynergy();
+  if(synergyInfo){
+    var h = HEROES[synergyInfo.heroes[0].key];
+    var typeName = synergyInfo.type==='str'?'力量':(synergyInfo.type==='agi'?'敏捷':'智力');
+    showToast('⚡ 连横触发！'+typeName+'系3英雄共鸣，攻击+50%！');
+  }
+  return true;
+}
+
+// 从塔位撤回英雄
+function removeHeroFromTower(towerIdx){
+  if(!towerSlots[towerIdx]) return;
+  towerSlots[towerIdx] = null;
+  checkSynergy();
+}
+
 // 英雄
 var hero = {
   cls:'warrior',towerIdx:4,lv:1,exp:0,expNeed:100,
@@ -254,6 +381,8 @@ function getMpRegen(){
   if(hd.type==='agi') return 3.0;
   return 2.0; // str
 }
+// 连横攻击加成
+function getSynergyMult(){return synergyInfo?(1+synergyInfo.bonus):1.0;}
 // 智力英雄普攻80%
 function getAtkMult(){var hd=hData();return hd.type==='int'?0.8:1.0;}
 
@@ -653,7 +782,7 @@ function autoAtk(){
   if(hero.atkTimer<atkInterval)return;hero.atkTimer=0;
   var hp=hPos(),range=hd.range*Math.min(W,H);
   if(dungeonEnemy){
-    var d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*(hero._atkBonus||1)));
+    var d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*(hero._atkBonus||1)*getSynergyMult()));
     // 法穿: 无视30%护甲
     var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
     dungeonEnemy.hp-=d;addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,'-'+d,'#ffd700',14);playSound('hit');
@@ -663,7 +792,7 @@ function autoAtk(){
   }
   var t=null,md=Infinity;for(var i=0;i<enemies.length;i++){var e=enemies[i],d=dist(hp.x,hp.y,e.x*W,e.y*H);if(d<range&&d<md){md=d;t=e;}}
   if(t){
-    var d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*(hero._atkBonus||1)-t.def));
+    var d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*(hero._atkBonus||1)*getSynergyMult()-t.def));
     var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
     // 感电: 10%概率额外闪电
     if(hd2.extraPassive&&hd2.extraPassive.indexOf('感电')>=0&&Math.random()<0.1){
@@ -690,7 +819,7 @@ function useSkill(idx){
   showRangeTimer=30;
   
   // 持续伤害效果
-  var dmg=Math.floor(hero.atk*sk.dmg*hero.buff*0.15);
+  var dmg=Math.floor(hero.atk*sk.dmg*hero.buff*0.15*getSynergyMult());
   lastingEffects.push(new LastingEffect(sk.type,hp.x,hp.y,aoe,dmg,120));
   
   // ====== 英雄专属特效 ======
@@ -826,7 +955,7 @@ function useSkill(idx){
   }
   
   // 伤害判定
-  if(dungeonEnemy){var d=Math.max(1,Math.floor(hero.atk*sk.dmg*hero.buff));dungeonEnemy.hp-=d;addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,'-'+d,'#ffd700',16);if(dungeonEnemy.hp<=0)completeDungeon();}
+  if(dungeonEnemy){var d=Math.max(1,Math.floor(hero.atk*sk.dmg*hero.buff*getSynergyMult()));dungeonEnemy.hp-=d;addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,'-'+d,'#ffd700',16);if(dungeonEnemy.hp<=0)completeDungeon();}
   else{for(var i=0;i<enemies.length;i++){var e=enemies[i];if(dist(hp.x,hp.y,e.x*W,e.y*H)<aoe){var d=Math.max(1,Math.floor(hero.atk*sk.dmg*hero.buff-e.def));e.hp-=d;addP(e.x*W,e.y*H-15,'-'+d,sk.type==='big'?hd.color:'#4fc3f7',14);}}}
   shake=sk.type==='big'?12:6;playSound('ult');updateSkUI();
 }
@@ -934,6 +1063,9 @@ function showHeroSelect(){
 function selectHero(key){
   hero.cls=key;
   initHeroSkills();
+  heroCollection=[key];
+  towerSlots=[null,null,null,null,null];
+  towerSlots[hero.towerIdx]=key;
   document.getElementById('hero-select-modal').classList.remove('show');
   state='playing';
   var hd=HEROES[key];
@@ -996,6 +1128,10 @@ function doPromo(auto,key){var b=auto?1.15:1.05;if(auto){var o=getPromoOpts();ke
   hero.maxHp=Math.floor(hero.maxHp*b)+hero.promo*50;hero.hp=hero.maxHp;
   hero.maxMp=getMpByPromo(hero.promo);hero.mp=hero.maxMp;
   initHeroSkills(); // 转职后重新初始化技能
+  // 更新收集和塔位
+  if(heroCollection.indexOf(key)<0) heroCollection.push(key);
+  towerSlots[hero.towerIdx]=key;
+  checkSynergy();
   document.getElementById('promo-modal').classList.remove('show');state='playing';var hp=hPos();addP(hp.x,hp.y-40,'转职:'+HEROES[key].name,'#ffd700',24);playSound('ult');
 }
 
@@ -1096,6 +1232,86 @@ function drawMap(){
   }
 }
 function drawPath(path,col,w){ctx.strokeStyle=col;ctx.lineWidth=w;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(path[0].x*W,path[0].y*H);for(var i=1;i<path.length;i++)ctx.lineTo(path[i].x*W,path[i].y*H);ctx.closePath();ctx.stroke();}
+
+// 绘制连横连线
+function drawSynergyLines(){
+  if(!synergyInfo) return;
+  var towers = synergyInfo.heroes;
+  if(towers.length < 3) return;
+  var typeColor = synergyInfo.type==='str'?'rgba(255,23,68,' : (synergyInfo.type==='agi'?'rgba(41,121,255,':'rgba(255,214,0,');
+  var pulse = Math.sin(Date.now()/300) * 0.3 + 0.7;
+  // 绘制三角连线
+  ctx.save();
+  ctx.strokeStyle = typeColor + (0.6*pulse) + ')';
+  ctx.lineWidth = 3;
+  ctx.shadowColor = typeColor + '0.8)';
+  ctx.shadowBlur = 15;
+  ctx.setLineDash([8, 4]);
+  ctx.beginPath();
+  for(var i = 0; i < towers.length; i++){
+    var t1 = TOWERS[towers[i].tower];
+    var t2 = TOWERS[towers[(i+1)%towers.length].tower];
+    ctx.moveTo(t1.x*W, t1.y*H);
+    ctx.lineTo(t2.x*W, t2.y*H);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // 连线中点能量球
+  for(var i = 0; i < towers.length; i++){
+    var t1 = TOWERS[towers[i].tower];
+    var t2 = TOWERS[towers[(i+1)%towers.length].tower];
+    var mx = (t1.x + t2.x)/2 * W;
+    var my = (t1.y + t2.y)/2 * H;
+    for(var r = 10; r > 0; r -= 2){
+      ctx.fillStyle = typeColor + (0.15 * (1 - r/10)) + ')';
+      ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI*2); ctx.fill();
+    }
+  }
+  // 连横标签
+  var typeName = synergyInfo.type==='str'?'力量':(synergyInfo.type==='agi'?'敏捷':'智力');
+  ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd700';
+  ctx.fillText('⚡ '+typeName+'连横 攻击+50%', W/2, H*0.08);
+  ctx.restore();
+}
+
+// 绘制塔位上的辅助英雄
+function drawTowerHeroes(){
+  for(var i = 0; i < towerSlots.length; i++){
+    if(!towerSlots[i] || i === hero.towerIdx) continue; // 主英雄塔位跳过
+    var key = towerSlots[i];
+    var h = HEROES[key];
+    if(!h) continue;
+    var t = TOWERS[i];
+    var tx = t.x * W, ty = t.y * H;
+    var sz = 24;
+    // 光环
+    ctx.save();
+    ctx.globalAlpha = 0.2 + Math.sin(Date.now()/500) * 0.05;
+    var gl = ctx.createRadialGradient(tx, ty, 0, tx, ty, 40);
+    gl.addColorStop(0, h.color); gl.addColorStop(1, 'transparent');
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(tx, ty, 40, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    // 英雄图
+    var heroImg = IMAGES['hero_'+key];
+    if(heroImg){
+      ctx.drawImage(heroImg, tx-sz, ty-sz, sz*2, sz*2);
+    } else {
+      ctx.font = sz+'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(h.icon, tx, ty);
+    }
+    // 边框
+    ctx.strokeStyle = h.color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(tx, ty, sz+2, 0, Math.PI*2); ctx.stroke();
+    // 名字
+    ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = h.color; ctx.fillText(h.cnName, tx, ty+sz+10);
+    // 类型标
+    var typeName = h.type==='str'?'力量':(h.type==='agi'?'敏捷':'智力');
+    ctx.font = '7px Arial'; ctx.fillStyle = '#aaa';
+    ctx.fillText('['+typeName+']', tx, ty+sz+20);
+  }
+}
 function drawHero(){
   var hp=hPos(),hd=hData(),x=hp.x,y=hp.y+Math.sin(Date.now()/300)*3,sz=38;
   var promo=hero.promo||0;
@@ -1171,10 +1387,11 @@ function drawHero(){
 
 function draw(){
   ctx.clearRect(0,0,W,H);ctx.save();if(shake>0)ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
-  drawMap();for(var i=0;i<lastingEffects.length;i++)lastingEffects[i].draw();
+  drawMap();drawSynergyLines();for(var i=0;i<lastingEffects.length;i++)lastingEffects[i].draw();
   for(var i=0;i<neutrals.length;i++)neutrals[i].draw(); // 中立怪
+  for(var i=0;i<heroCards.length;i++)heroCards[i].draw(); // 英雄卡牌
   for(var i=0;i<enemies.length;i++)enemies[i].draw();if(dungeonEnemy)dungeonEnemy.draw();
-  drawHero();for(var i=0;i<effects.length;i++)effects[i].draw();for(var i=0;i<particles.length;i++)particles[i].draw();ctx.restore();
+  drawHero();drawTowerHeroes();for(var i=0;i<effects.length;i++)effects[i].draw();for(var i=0;i<particles.length;i++)particles[i].draw();ctx.restore();
 }
 
 // ====== 主循环 ======
@@ -1192,6 +1409,19 @@ function update(){
   for(var i=lastingEffects.length-1;i>=0;i--)if(!lastingEffects[i].update())lastingEffects.splice(i,1);
   // 更新中立怪
   for(var i=neutrals.length-1;i>=0;i--){if(!neutrals[i].update()||!neutrals[i].alive)neutrals.splice(i,1);}
+  // 更新英雄卡牌
+  for(var i=heroCards.length-1;i>=0;i--){if(!heroCards[i].update())heroCards.splice(i,1);}
+  // 英雄卡牌掉落: 每10秒1%概率
+  var now = Date.now();
+  if(now - lastCardDropTime > cardDropInterval){
+    lastCardDropTime = now;
+    if(Math.random() < cardDropChance){
+      var keys = Object.keys(HEROES);
+      var dropKey = keys[Math.floor(Math.random()*keys.length)];
+      heroCards.push(new HeroCard(dropKey));
+      addP(W/2, H*0.3, '✨ 英雄卡牌降临！', '#ffd700', 20);
+    }
+  }
   if(dungeonActive){dungeonTimer-=0.016;if(dungeonTimer<=0)failDungeon();}
   waveT-=0.016;if(waveT<=0){wave++;waveT=10;spawnWave();}
   if(shake>0)shake*=0.85;if(shake<0.5)shake=0;checkEnd();updateUI();
@@ -1207,6 +1437,11 @@ function init(){
   var heroKeys=Object.keys(HEROES);
   hero.cls=heroKeys[Math.floor(Math.random()*heroKeys.length)];
   initHeroSkills();
+  // 初始化收集和塔位
+  heroCollection=[hero.cls];
+  towerSlots=[null,null,null,null,null];
+  towerSlots[hero.towerIdx]=hero.cls;
+  lastCardDropTime=Date.now();
   // 加载图片资源后启动游戏
   loadImages(function(){
     requestAnimationFrame(loop);
@@ -1223,19 +1458,178 @@ function setupEvents(){
   var sks=document.querySelectorAll('.sk');for(var i=0;i<sks.length;i++){(function(btn){var fn=function(e){e.preventDefault();e.stopPropagation();if(state==='playing')useSkill(parseInt(btn.dataset.skill));};btn.addEventListener('touchstart',fn);btn.addEventListener('click',fn);})(sks[i]);}
   canvas.addEventListener('click',function(e){
     if(state!=='playing')return;var rect=canvas.getBoundingClientRect(),x=(e.clientX-rect.left)*(W/rect.width),y=(e.clientY-rect.top)*(H/rect.height);
+    // 收集英雄卡牌
+    for(var i=0;i<heroCards.length;i++){
+      if(heroCards[i].alive&&heroCards[i].hitTest(x,y)){
+        collectHero(heroCards[i].classKey);
+        heroCards[i].alive=false;
+        var hx=heroCards[i].x*W,hy=heroCards[i].y*H;
+        for(var j=0;j<12;j++){var a=j*30*Math.PI/180;addP(hx+Math.cos(a)*15,hy+Math.sin(a)*15,'✦','#ffd700',12);}
+        return;
+      }
+    }
     // 攻击中立怪
     for(var i=0;i<neutrals.length;i++){
       if(neutrals[i].alive&&neutrals[i].hitTest(x,y)){
-        var n=neutrals[i],d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff));
+        var n=neutrals[i],d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*getSynergyMult()));
         n.hp-=d;addP(n.x*W,n.y*H-20,'-'+d,'#fff',14);playSound('hit');
         if(n.hp<=0)n.die();
         return;
       }
     }
-    var hp=hPos();if(dist(x,y,hp.x,hp.y)<35){showRangeTimer=120;return;}if(moveCd>0)return;
-    for(var i=0;i<TOWERS.length;i++){var t=TOWERS[i],tx=t.x*W,ty=t.y*H;if(dist(x,y,tx,ty)<35){if(hero.towerIdx!==i){hero.towerIdx=i;moveCd=3;addP(tx,ty-30,'移动!','#fff',14);playSound('ult');}return;}}
+    var hp=hPos();if(dist(x,y,hp.x,hp.y)<35){showRangeTimer=120;return;}
+    // 点击塔位 → 显示菜单
+    for(var i=0;i<TOWERS.length;i++){var t=TOWERS[i],tx=t.x*W,ty=t.y*H;
+      if(dist(x,y,tx,ty)<40){
+        if(i===hero.towerIdx){showRangeTimer=60;} // 主英雄塔：显示范围
+        else {showTowerMenu(i);} // 其他塔：显示放置/撤回菜单
+        return;
+      }
+    }
+    // 主英雄移动（点击空地的塔位区域以外不移动，只允许在已有菜单提示下移动）
+    if(moveCd>0)return;
   });
   document.getElementById('btn-dungeon').onclick=function(e){if(e){e.preventDefault();e.stopPropagation();}if(state==='playing'&&!dungeonActive)showDungeonMenu();else if(dungeonActive)showToast('已在副本中!');return false;};
+  document.getElementById('btn-collection').onclick=function(e){if(e){e.preventDefault();e.stopPropagation();}if(state==='playing')showCollectionModal();return false;};
+}
+
+// ====== 塔位菜单 ======
+function showTowerMenu(towerIdx){
+  state='paused';
+  var modal=document.getElementById('tower-modal');
+  var content=document.getElementById('tower-modal-content');
+  var occupied = towerSlots[towerIdx];
+  var html = '';
+  if(occupied){
+    var h = HEROES[occupied];
+    var isMain = (towerIdx === hero.towerIdx);
+    html += '<div style="color:'+h.color+';font-size:18px;font-weight:bold;margin-bottom:8px;">'+h.icon+' '+h.cnName+'（'+h.name+'）</div>';
+    html += '<div style="color:#aaa;font-size:12px;margin-bottom:15px;">'+(isMain?'⭐ 主英雄 - '+TOWERS[towerIdx].name+'塔':'已放置在 '+TOWERS[towerIdx].name+' 塔')+'</div>';
+    html += '<div class="btns">';
+    if(!isMain){
+      html += '<button onclick="doRemoveFromTower('+towerIdx+')" style="border-color:#ff5252;">撤回英雄</button>';
+    }
+    html += '<button onclick="closeTowerModal()">返回</button></div>';
+  } else {
+    html += '<div style="color:#ffd700;font-size:16px;font-weight:bold;margin-bottom:8px;">'+TOWERS[towerIdx].name+' 塔 - 空闲</div>';
+    html += '<div style="color:#aaa;font-size:12px;margin-bottom:12px;">选择操作：</div>';
+    // 移动主英雄到这里
+    if(hero.towerIdx!==towerIdx && moveCd<=0){
+      html += '<div onclick="doMoveHeroTo('+towerIdx+')" style="padding:12px;margin-bottom:10px;background:linear-gradient(180deg,#2a4a7a,#1a2a4a);border:2px solid #4a90d9;border-radius:10px;cursor:pointer;text-align:center;">';
+      html += '<div style="font-size:24px;">🏃</div>';
+      html += '<div style="font-size:13px;font-weight:bold;color:#4a90d9;">移动主英雄至此</div>';
+      html += '<div style="font-size:10px;color:#aaa;">'+HEROES[hero.cls].cnName+'</div>';
+      html += '</div>';
+    }
+    // 显示可放置的英雄（排除主英雄和已放置的）
+    var available = heroCollection.filter(function(k){
+      if(k===hero.cls) return false; // 主英雄不能放
+      for(var j=0;j<towerSlots.length;j++){if(towerSlots[j]===k) return false;}
+      return true;
+    });
+    if(available.length === 0){
+      html += '<div style="color:#888;font-size:13px;margin:15px 0;">暂无可放置英雄<br><span style="font-size:11px;">收集英雄卡牌来扩充图鉴！</span></div>';
+    } else {
+      html += '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:5px;">';
+      for(var i=0;i<available.length;i++){
+        var key = available[i], h = HEROES[key];
+        var typeName = h.type==='str'?'力量':(h.type==='agi'?'敏捷':'智力');
+        html += '<div onclick="doPlaceOnTower('+towerIdx+',\''+key+'\')" style="width:90px;padding:10px;background:linear-gradient(180deg,#2a2a4a,#1a1a3a);border:2px solid '+h.color+';border-radius:10px;cursor:pointer;text-align:center;">';
+        html += '<div style="font-size:28px;">'+h.icon+'</div>';
+        html += '<div style="font-size:12px;font-weight:bold;color:'+h.color+';">'+h.cnName+'</div>';
+        html += '<div style="font-size:9px;color:#aaa;">'+typeName+'</div>';
+        html += '<div style="font-size:8px;color:#888;margin-top:2px;">'+h.passive+'</div>';
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    html += '<div class="btns" style="margin-top:12px;"><button onclick="closeTowerModal()">返回</button></div>';
+  }
+  content.innerHTML = html;
+  modal.classList.add('show');
+}
+function closeTowerModal(){
+  document.getElementById('tower-modal').classList.remove('show');
+  state='playing';
+}
+function doPlaceOnTower(towerIdx, classKey){
+  placeHeroOnTower(towerIdx, classKey);
+  closeTowerModal();
+}
+function doRemoveFromTower(towerIdx){
+  var key = towerSlots[towerIdx];
+  removeHeroFromTower(towerIdx);
+  showToast('已撤回 '+HEROES[key].cnName);
+  closeTowerModal();
+}
+function doMoveHeroTo(towerIdx){
+  towerSlots[hero.towerIdx] = null; // 旧位置清空
+  hero.towerIdx = towerIdx;
+  towerSlots[towerIdx] = hero.cls; // 新位置放主英雄
+  moveCd = 3;
+  checkSynergy();
+  var tx=TOWERS[towerIdx].x*W,ty=TOWERS[towerIdx].y*H;
+  addP(tx,ty-30,'移动!','#fff',14);playSound('ult');
+  closeTowerModal();
+}
+
+// ====== 图鉴/收集面板 ======
+function showCollectionModal(){
+  state='paused';
+  var modal=document.getElementById('collection-modal');
+  var grid=document.getElementById('collection-grid');
+  var synergyDiv=document.getElementById('collection-synergy');
+  grid.innerHTML='';
+  // 统计
+  var typeCount={str:0,agi:0,int:0};
+  var allKeys=Object.keys(HEROES);
+  // 按类型分组显示
+  var types=['str','agi','int'];
+  var typeNames={str:'力量系',agi:'敏捷系',int:'智力系'};
+  var typeColors={str:'#ff1744',agi:'#2979ff',int:'#ffd600'};
+  for(var ti=0;ti<types.length;ti++){
+    var t=types[ti];
+    var section=document.createElement('div');
+    section.style.cssText='width:100%;margin-bottom:10px;';
+    var owned=allKeys.filter(function(k){return HEROES[k].type===t&&heroCollection.indexOf(k)>=0;});
+    var total=allKeys.filter(function(k){return HEROES[k].type===t;});
+    typeCount[t]=owned.length;
+    section.innerHTML='<div style="color:'+typeColors[t]+';font-size:13px;font-weight:bold;margin-bottom:6px;text-align:left;padding-left:10px;">'+typeNames[t]+' ('+owned.length+'/'+total.length+')</div>';
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;justify-content:center;';
+    for(var i=0;i<total.length;i++){
+      var key=total[i],h=HEROES[key],has=heroCollection.indexOf(key)>=0;
+      var card=document.createElement('div');
+      card.style.cssText='width:80px;padding:8px;background:'+(has?'linear-gradient(180deg,#2a2a4a,#1a1a3a)':'rgba(30,30,40,0.5)')+';border:2px solid '+(has?h.color:'#333')+';border-radius:10px;text-align:center;opacity:'+(has?'1':'0.4')+';';
+      card.innerHTML='<div style="font-size:24px;">'+(has?h.icon:'❓')+'</div>'
+        +'<div style="font-size:10px;font-weight:bold;color:'+(has?h.color:'#555')+';">'+(has?h.cnName:'???')+'</div>'
+        +'<div style="font-size:8px;color:#888;">'+h.name+'</div>'
+        +(has?'<div style="font-size:7px;color:#666;margin-top:2px;">'+h.passive+'</div>':'');
+      row.appendChild(card);
+    }
+    section.appendChild(row);
+    grid.appendChild(section);
+  }
+  // 连横状态
+  var synHTML='<div style="margin-top:10px;padding:10px;background:rgba(0,0,0,0.5);border-radius:10px;border:1px solid #444;">';
+  synHTML+='<div style="color:#ffd700;font-size:13px;font-weight:bold;margin-bottom:6px;">⚡ 连横系统</div>';
+  synHTML+='<div style="color:#aaa;font-size:11px;line-height:1.6;">同系3英雄上阵 → 攻击+50%<br>';
+  synHTML+='力量: <span style="color:'+(typeCount.str>=3?'#4caf50':'#f44336')+';">'+typeCount.str+'/3</span> | ';
+  synHTML+='敏捷: <span style="color:'+(typeCount.agi>=3?'#4caf50':'#f44336')+';">'+typeCount.agi+'/3</span> | ';
+  synHTML+='智力: <span style="color:'+(typeCount.int>=3?'#4caf50':'#f44336')+';">'+typeCount.int+'/3</span></div>';
+  if(synergyInfo){
+    var tn=synergyInfo.type==='str'?'力量':(synergyInfo.type==='agi'?'敏捷':'智力');
+    synHTML+='<div style="color:#4caf50;font-size:12px;font-weight:bold;margin-top:4px;">✅ '+tn+'连横已激活！攻击+50%</div>';
+  }
+  synHTML+='</div>';
+  synergyDiv.innerHTML=synHTML;
+  // 底部信息
+  document.getElementById('collection-count').textContent='已收集: '+heroCollection.length+'/'+allKeys.length;
+  modal.classList.add('show');
+}
+function closeCollectionModal(){
+  document.getElementById('collection-modal').classList.remove('show');
+  state='playing';
 }
 
 window.onload=init;
