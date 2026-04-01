@@ -246,7 +246,7 @@ var heroCards = []; // 地面上浮动的英雄卡牌
 var lastCardDropTime = 0;
 var synergyInfo = null; // 当前连横信息 {type, heroes, bonus}
 var cardDropInterval = 10000; // 10秒检查一次
-var cardDropChance = 0.01; // 1%概率
+var cardDropChance = 0.05; // 1%概率
 
 // 英雄卡牌类
 function HeroCard(classKey){
@@ -660,8 +660,10 @@ function Enemy(pk,tk){
   this.path=path;this.wp=0;this.pk=pk;this.tk=tk;
   this.x=path[0].x+(Math.random()-0.5)*0.05;this.y=path[0].y+(Math.random()-0.5)*0.05;
   this.boss=tk==='boss';var wm=1+wave*0.1;
-  this.hp=(50+wave*12)*type.hpM*wm;this.maxHp=this.hp;
-  this.def=3+wave*(this.boss?2:0.8);this.spd=(pk==='inner'?0.004:0.0025)*type.spdM*0.5;
+  // 后期指数增长：前10波正常，10波后怪物大幅增强
+  var lateScale = wave>10 ? Math.pow(1.12, wave-10) : 1;
+  this.hp=(50+wave*12)*type.hpM*wm*lateScale;this.maxHp=this.hp;
+  this.def=(3+wave*(this.boss?2:0.8))*lateScale;this.spd=(pk==='inner'?0.004:0.0025)*type.spdM*0.5;
   this.exp=Math.floor((20+wave*8)*(this.boss?5:1)*0.21); // 原始的21%（30%*70%）
   this.sz=this.boss?0.04:(tk==='elite'?0.028:(tk==='tank'?0.03:0.02));
   this.col=type.col;
@@ -1149,7 +1151,40 @@ function checkEnd(){
   if(enemies.length>=180)gameOver('敌人超过180!');
   if(hero.hp<=0)gameOver('英雄阵亡!');
 }
-function gameOver(r){state='gameover';document.getElementById('go-wave').textContent=wave;document.getElementById('go-kills').textContent=kills;document.getElementById('go-reason').textContent=r;document.getElementById('gameover').classList.add('show');}
+function gameOver(r){
+  state='gameover';
+  var goDiv=document.getElementById('gameover');
+  var isWin = r.indexOf('胜利')>=0;
+  goDiv.className = 'gameover show '+(isWin?'go-victory':'go-defeat');
+  document.getElementById('go-title').textContent = isWin?'🏆 胜 利 🏆':'💀 败 北 💀';
+  document.getElementById('go-subtitle').textContent = isWin?'千军之中取敌首级！':'乱军之中力竭而亡...';
+  document.getElementById('go-wave').textContent=wave;
+  document.getElementById('go-kills').textContent=kills;
+  document.getElementById('go-lv').textContent=hero.lv;
+  document.getElementById('go-collect').textContent=heroCollection.length;
+  document.getElementById('go-reason').textContent=r;
+  // 英雄信息
+  var hd=hData();
+  document.getElementById('go-hero').innerHTML='<span class="go-hero-icon">'+hd.icon+'</span><span class="go-hero-name">'+hd.cnName+' Lv.'+hero.lv+'</span>';
+  // 连横信息
+  if(synergyInfo){
+    var tn=synergyInfo.type==='str'?'力量':(synergyInfo.type==='agi'?'敏捷':'智力');
+    document.getElementById('go-synergy').textContent='⚡ '+tn+'连横已激活';
+  } else {
+    document.getElementById('go-synergy').textContent='';
+  }
+  // 粒子特效
+  var pDiv=document.getElementById('go-particles');
+  pDiv.innerHTML='';
+  var colors = isWin?['#ffd700','#ff9800','#ffeb3b','#fff']:['#ff4444','#ff0000','#ff6600','#990000'];
+  for(var i=0;i<40;i++){
+    var p=document.createElement('div');
+    var sz=2+Math.random()*4;
+    var c=colors[Math.floor(Math.random()*colors.length)];
+    p.style.cssText='position:absolute;width:'+sz+'px;height:'+sz+'px;background:'+c+';border-radius:50%;left:'+Math.random()*100+'%;top:'+Math.random()*100+'%;opacity:'+(0.3+Math.random()*0.7)+';animation:goParticle '+(2+Math.random()*3)+'s infinite '+(Math.random()*2)+'s;';
+    pDiv.appendChild(p);
+  }
+}
 
 // ====== UI ======
 function updateUI(){
@@ -1239,31 +1274,58 @@ function drawSynergyLines(){
   var towers = synergyInfo.heroes;
   if(towers.length < 3) return;
   var typeColor = synergyInfo.type==='str'?'rgba(255,23,68,' : (synergyInfo.type==='agi'?'rgba(41,121,255,':'rgba(255,214,0,');
+  var typeRGB = synergyInfo.type==='str'?[255,23,68] : (synergyInfo.type==='agi'?[41,121,255]:[255,214,0]);
   var pulse = Math.sin(Date.now()/300) * 0.3 + 0.7;
-  // 绘制三角连线
+  var pts = [];
+  for(var i = 0; i < towers.length; i++){
+    var t = TOWERS[towers[i].tower];
+    pts.push({x: t.x*W, y: t.y*H});
+  }
   ctx.save();
+  // 填充三角区域 - 能量场
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for(var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+  // 渐变填充
+  var cx = (pts[0].x+pts[1].x+pts[2].x)/3;
+  var cy = (pts[0].y+pts[1].y+pts[2].y)/3;
+  var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(dist(cx,cy,pts[0].x,pts[0].y), 100));
+  grad.addColorStop(0, typeColor+(0.25*pulse)+')');
+  grad.addColorStop(0.6, typeColor+(0.1*pulse)+')');
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.fill();
+  // 能量粒子在三角内流动
+  var t = Date.now()/1000;
+  for(var i = 0; i < 12; i++){
+    var seed = i * 1.618;
+    var px = cx + Math.sin(t*2+seed)*80 + Math.cos(t*3+seed*2)*40;
+    var py = cy + Math.cos(t*1.5+seed)*60 + Math.sin(t*2.5+seed*1.5)*30;
+    // 检查是否在三角内
+    if(pointInTriangle(px, py, pts[0], pts[1], pts[2])){
+      ctx.fillStyle = typeColor+(0.4+Math.sin(t*4+i)*0.2)+')';
+      ctx.beginPath(); ctx.arc(px, py, 3+Math.sin(t*3+i)*1.5, 0, Math.PI*2); ctx.fill();
+    }
+  }
+  // 三角边框
   ctx.strokeStyle = typeColor + (0.6*pulse) + ')';
   ctx.lineWidth = 3;
   ctx.shadowColor = typeColor + '0.8)';
   ctx.shadowBlur = 15;
   ctx.setLineDash([8, 4]);
   ctx.beginPath();
-  for(var i = 0; i < towers.length; i++){
-    var t1 = TOWERS[towers[i].tower];
-    var t2 = TOWERS[towers[(i+1)%towers.length].tower];
-    ctx.moveTo(t1.x*W, t1.y*H);
-    ctx.lineTo(t2.x*W, t2.y*H);
-  }
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for(var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
   ctx.stroke();
   ctx.setLineDash([]);
   // 连线中点能量球
-  for(var i = 0; i < towers.length; i++){
-    var t1 = TOWERS[towers[i].tower];
-    var t2 = TOWERS[towers[(i+1)%towers.length].tower];
-    var mx = (t1.x + t2.x)/2 * W;
-    var my = (t1.y + t2.y)/2 * H;
-    for(var r = 10; r > 0; r -= 2){
-      ctx.fillStyle = typeColor + (0.15 * (1 - r/10)) + ')';
+  for(var i = 0; i < pts.length; i++){
+    var mx = (pts[i].x + pts[(i+1)%pts.length].x)/2;
+    var my = (pts[i].y + pts[(i+1)%pts.length].y)/2;
+    for(var r = 12; r > 0; r -= 2){
+      ctx.fillStyle = typeColor + (0.15 * (1 - r/12)) + ')';
       ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI*2); ctx.fill();
     }
   }
@@ -1271,8 +1333,38 @@ function drawSynergyLines(){
   var typeName = synergyInfo.type==='str'?'力量':(synergyInfo.type==='agi'?'敏捷':'智力');
   ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
   ctx.fillStyle = '#ffd700';
-  ctx.fillText('⚡ '+typeName+'连横 攻击+50%', W/2, H*0.08);
+  ctx.fillText('⚡ '+typeName+'连横 攻击+50% | 领域伤害', W/2, H*0.08);
   ctx.restore();
+}
+
+// 判断点是否在三角形内
+function pointInTriangle(px, py, v1, v2, v3){
+  var d1 = (px-v2.x)*(v1.y-v2.y)-(v1.x-v2.x)*(py-v2.y);
+  var d2 = (px-v3.x)*(v2.y-v3.y)-(v2.x-v3.x)*(py-v3.y);
+  var d3 = (px-v1.x)*(v3.y-v1.y)-(v3.x-v1.x)*(py-v1.y);
+  var hasNeg = (d1<0)||(d2<0)||(d3<0);
+  var hasPos = (d1>0)||(d2>0)||(d3>0);
+  return !(hasNeg && hasPos);
+}
+
+// 连横领域伤害
+function synergyZoneTick(){
+  if(!synergyInfo || synergyInfo.heroes.length < 3) return;
+  var pts = [];
+  for(var i = 0; i < synergyInfo.heroes.length; i++){
+    var t = TOWERS[synergyInfo.heroes[i].tower];
+    pts.push({x: t.x*W, y: t.y*H});
+  }
+  var zoneDmg = Math.floor(hero.atk * 0.8 * getSynergyMult());
+  for(var i = 0; i < enemies.length; i++){
+    var e = enemies[i];
+    var ex = e.x*W, ey = e.y*H;
+    if(pointInTriangle(ex, ey, pts[0], pts[1], pts[2])){
+      e.hp -= zoneDmg;
+      // 飘字
+      if(Math.random()<0.1) addP(ex, ey-10, '-'+zoneDmg, '#ff0', 9);
+    }
+  }
 }
 
 // 绘制塔位上的辅助英雄
@@ -1411,6 +1503,8 @@ function update(){
   for(var i=neutrals.length-1;i>=0;i--){if(!neutrals[i].update()||!neutrals[i].alive)neutrals.splice(i,1);}
   // 更新英雄卡牌
   for(var i=heroCards.length-1;i>=0;i--){if(!heroCards[i].update())heroCards.splice(i,1);}
+  // 连横领域伤害
+  synergyZoneTick();
   // 英雄卡牌掉落: 每10秒1%概率
   var now = Date.now();
   if(now - lastCardDropTime > cardDropInterval){
@@ -1461,10 +1555,7 @@ function setupEvents(){
     // 收集英雄卡牌
     for(var i=0;i<heroCards.length;i++){
       if(heroCards[i].alive&&heroCards[i].hitTest(x,y)){
-        collectHero(heroCards[i].classKey);
-        heroCards[i].alive=false;
-        var hx=heroCards[i].x*W,hy=heroCards[i].y*H;
-        for(var j=0;j<12;j++){var a=j*30*Math.PI/180;addP(hx+Math.cos(a)*15,hy+Math.sin(a)*15,'✦','#ffd700',12);}
+        showCardPickup(heroCards[i]);
         return;
       }
     }
@@ -1491,6 +1582,45 @@ function setupEvents(){
   });
   document.getElementById('btn-dungeon').onclick=function(e){if(e){e.preventDefault();e.stopPropagation();}if(state==='playing'&&!dungeonActive)showDungeonMenu();else if(dungeonActive)showToast('已在副本中!');return false;};
   document.getElementById('btn-collection').onclick=function(e){if(e){e.preventDefault();e.stopPropagation();}if(state==='playing')showCollectionModal();return false;};
+}
+
+// ====== 卡牌拾取弹窗 ======
+var pendingCard = null;
+function showCardPickup(card){
+  state='paused';
+  pendingCard = card;
+  var h = HEROES[card.classKey];
+  var typeName = h.type==='str'?'力量系':(h.type==='agi'?'敏捷系':'智力系');
+  var modal = document.getElementById('card-modal');
+  var content = document.getElementById('card-modal-content');
+  content.innerHTML = '<div style="font-size:48px;margin-bottom:8px;">'+h.icon+'</div>'
+    +'<div style="color:'+h.color+';font-size:20px;font-weight:bold;">'+h.cnName+'</div>'
+    +'<div style="color:#aaa;font-size:13px;">'+h.name+' · '+typeName+'</div>'
+    +'<div style="color:#888;font-size:11px;margin:6px 0;">'+h.passive+'</div>'
+    +'<div style="display:flex;gap:12px;margin-top:15px;justify-content:center;">'
+    +'<button onclick="doCollectCard()" style="padding:10px 24px;background:linear-gradient(180deg,#4caf50,#2e7d32);border:2px solid #66bb6a;border-radius:12px;color:#fff;font-size:14px;font-weight:bold;cursor:pointer;">📥 收集</button>'
+    +'<button onclick="doDiscardCard()" style="padding:10px 24px;background:linear-gradient(180deg,#555,#333);border:2px solid #777;border-radius:12px;color:#ccc;font-size:14px;cursor:pointer;">🗑️ 废弃</button>'
+    +'</div>';
+  modal.classList.add('show');
+}
+function doCollectCard(){
+  if(!pendingCard) return;
+  collectHero(pendingCard.classKey);
+  var hx=pendingCard.x*W, hy=pendingCard.y*H;
+  for(var j=0;j<12;j++){var a=j*30*Math.PI/180;addP(hx+Math.cos(a)*15,hy+Math.sin(a)*15,'✦','#ffd700',12);}
+  pendingCard.alive=false;
+  pendingCard=null;
+  document.getElementById('card-modal').classList.remove('show');
+  state='playing';
+}
+function doDiscardCard(){
+  if(!pendingCard) return;
+  var hx=pendingCard.x*W, hy=pendingCard.y*H;
+  addP(hx,hy,'废弃','#888',14);
+  pendingCard.alive=false;
+  pendingCard=null;
+  document.getElementById('card-modal').classList.remove('show');
+  state='playing';
 }
 
 // ====== 塔位菜单 ======
