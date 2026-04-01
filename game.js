@@ -246,7 +246,24 @@ var heroCards = []; // 地面上浮动的英雄卡牌
 var lastCardDropTime = 0;
 var synergyInfo = null; // 当前连横信息 {type, heroes, bonus}
 var cardDropInterval = 10000; // 10秒检查一次
-var cardDropChance = 0.05; // 1%概率
+var cardDropChance = 0.08; // 8%概率
+
+// 塔位英雄战斗状态（每个塔位独立计算攻击和技能CD）
+var towerHeroStates = [null,null,null,null,null]; // {atkTimer, skills:[{cd}], mp}
+function initTowerHeroState(idx){
+  var key = towerSlots[idx];
+  if(!key){towerHeroStates[idx]=null;return;}
+  var h = HEROES[key];
+  towerHeroStates[idx] = {
+    atkTimer: 0,
+    mp: 200,
+    maxMp: 200,
+    skills: [
+      {cd:0, maxCd:h.skills[0].maxCd, dmg:h.skills[0].dmg, aoe:h.skills[0].aoe, type:h.skills[0].type, cost:h.skills[0].cost, name:h.skills[0].name, ic:h.skills[0].ic, fx:h.skills[0].fx},
+      {cd:0, maxCd:h.skills[1].maxCd, dmg:h.skills[1].dmg, aoe:h.skills[1].aoe, type:h.skills[1].type, cost:h.skills[1].cost, name:h.skills[1].name, ic:h.skills[1].ic, fx:h.skills[1].fx}
+    ]
+  };
+}
 
 // 英雄卡牌类
 function HeroCard(classKey){
@@ -350,6 +367,7 @@ function collectHero(classKey){
 function placeHeroOnTower(towerIdx, classKey){
   if(towerSlots[towerIdx]) return false; // 已有英雄
   towerSlots[towerIdx] = classKey;
+  initTowerHeroState(towerIdx);
   checkSynergy();
   if(synergyInfo){
     var h = HEROES[synergyInfo.heroes[0].key];
@@ -363,6 +381,7 @@ function placeHeroOnTower(towerIdx, classKey){
 function removeHeroFromTower(towerIdx){
   if(!towerSlots[towerIdx]) return;
   towerSlots[towerIdx] = null;
+  towerHeroStates[towerIdx] = null;
   checkSynergy();
 }
 
@@ -806,7 +825,100 @@ function autoAtk(){
   }
 }
 
-// ====== 技能释放（10种独特特效） ======
+// ====== 塔位副英雄自动攻击 ======
+function towerHeroesAutoAtk(){
+  for(var ti=0; ti<towerSlots.length; ti++){
+    if(ti===hero.towerIdx || !towerSlots[ti] || !towerHeroStates[ti]) continue;
+    var key = towerSlots[ti];
+    var h = HEROES[key];
+    var st = towerHeroStates[ti];
+    st.atkTimer += 0.016;
+    var atkInterval = h.atkSpd * 0.6; // 副英雄攻速稍慢
+    if(st.atkTimer < atkInterval) continue;
+    st.atkTimer = 0;
+    // MP自然恢复
+    var mpRegen = h.type==='int'?3.0:(h.type==='agi'?2.0:1.5);
+    st.mp = Math.min(st.maxMp, st.mp + mpRegen/60);
+    var tx = TOWERS[ti].x*W, ty = TOWERS[ti].y*H;
+    var range = h.range * Math.min(W,H);
+    // 副英雄攻击力 = 主英雄的50%
+    var towerAtk = Math.floor(hero.atk * 0.5);
+    var typeAtkMult = h.type==='int'?0.8:1.0;
+    if(dungeonEnemy){
+      var d = Math.max(1, Math.floor(towerAtk * 3.0 * typeAtkMult * hero.buff * getSynergyMult()));
+      dungeonEnemy.hp -= d;
+      addP(dungeonEnemy.x*W, dungeonEnemy.y*H-20, '-'+d, h.color, 10);
+      if(dungeonEnemy.hp<=0) completeDungeon();
+      continue;
+    }
+    var target=null, minDist=Infinity;
+    for(var i=0;i<enemies.length;i++){
+      var e=enemies[i], dd=dist(tx,ty,e.x*W,e.y*H);
+      if(dd<range && dd<minDist){minDist=dd;target=e;}
+    }
+    if(target){
+      var d = Math.max(1, Math.floor(towerAtk * 3.0 * typeAtkMult * hero.buff * getSynergyMult() - target.def));
+      // 法穿
+      if(h.extraPassive && h.extraPassive.indexOf('法穿')>=0) d = Math.max(1, Math.floor(d*1.15));
+      // 感电
+      if(h.extraPassive && h.extraPassive.indexOf('感电')>=0 && Math.random()<0.1){
+        d = Math.floor(d*1.5); addP(target.x*W,target.y*H-25,'⚡','#7c4dff',14);
+      }
+      target.hp -= d;
+      addP(target.x*W, target.y*H-15, '-'+d, h.color, 10);
+      // 吸血
+      if(h.extraPassive && h.extraPassive.indexOf('吸血')>=0){
+        hero.hp = Math.min(hero.maxHp, hero.hp + Math.floor(d*0.15));
+      }
+    }
+  }
+}
+
+// 塔位副英雄释放技能
+function useTowerHeroSkill(towerIdx, skillIdx){
+  var key = towerSlots[towerIdx];
+  var st = towerHeroStates[towerIdx];
+  if(!key || !st) return;
+  var h = HEROES[key];
+  var sk = st.skills[skillIdx];
+  if(sk.cd > 0){showToast(sk.name+' 冷却中: '+Math.ceil(sk.cd)+'s');return;}
+  if(st.mp < sk.cost){showToast('MP不足!');return;}
+  sk.cd = sk.maxCd;
+  st.mp -= sk.cost;
+  var tx = TOWERS[towerIdx].x*W, ty = TOWERS[towerIdx].y*H;
+  var aoe = sk.aoe * Math.min(W,H);
+  var towerAtk = Math.floor(hero.atk * 0.5);
+  var dmg = Math.floor(towerAtk * sk.dmg * hero.buff * 0.15 * getSynergyMult());
+  // 技能名称
+  addP(tx, ty-70, sk.name, sk.type==='big'?h.color:'#fff', sk.type==='big'?28:22);
+  addP(tx, ty-40, sk.ic, h.color, 24);
+  // 持续效果
+  lastingEffects.push(new LastingEffect(sk.type, tx, ty, aoe, dmg, 120));
+  // 伤害
+  if(dungeonEnemy){
+    var d = Math.max(1, Math.floor(towerAtk * sk.dmg * hero.buff * getSynergyMult()));
+    dungeonEnemy.hp -= d;
+    addP(dungeonEnemy.x*W, dungeonEnemy.y*H-20, '-'+d, '#ffd700', 14);
+    if(dungeonEnemy.hp<=0) completeDungeon();
+  } else {
+    for(var i=0;i<enemies.length;i++){
+      var e=enemies[i];
+      if(dist(tx,ty,e.x*W,e.y*H)<aoe){
+        var d = Math.max(1, Math.floor(towerAtk * sk.dmg * hero.buff * getSynergyMult() - e.def));
+        e.hp -= d;
+        addP(e.x*W, e.y*H-15, '-'+d, sk.type==='big'?h.color:'#4fc3f7', 12);
+      }
+    }
+  }
+  // 粒子特效
+  var fxCount = sk.type==='big'?12:6;
+  for(var j=0;j<fxCount;j++){
+    var ang = j*(360/fxCount)*Math.PI/180;
+    addP(tx+Math.cos(ang)*aoe*0.5, ty+Math.sin(ang)*aoe*0.5, sk.ic, h.color, 18);
+  }
+  shake = sk.type==='big'?8:4;
+  playSound('ult');
+}
 function useSkill(idx){
   var sk=hero.skills[idx];if(sk.cd>0||hero.mp<sk.cost)return;
   sk.cd=sk.maxCd;hero.mp-=sk.cost;var hp=hPos(),hd=hData(),aoe=sk.aoe*Math.min(W,H);
@@ -1490,6 +1602,13 @@ function draw(){
 function update(){
   if(state!=='playing')return;if(moveCd>0)moveCd-=0.016;if(showRangeTimer>0)showRangeTimer--;if(adCooldown>0)adCooldown-=0.016;
   if(hero.hp>0)autoAtk();if(hero.mp<hero.maxMp)hero.mp+=getMpRegen()/60;for(var i=0;i<hero.skills.length;i++)if(hero.skills[i].cd>0)hero.skills[i].cd-=0.016;
+  // 副英雄攻击+CD
+  towerHeroesAutoAtk();
+  for(var ti=0;ti<towerHeroStates.length;ti++){
+    var st=towerHeroStates[ti];
+    if(!st||ti===hero.towerIdx) continue;
+    for(var si=0;si<st.skills.length;si++) if(st.skills[si].cd>0) st.skills[si].cd-=0.016;
+  }
   for(var i=enemies.length-1;i>=0;i--){enemies[i].update();if(enemies[i].hp<=0){kills++;gold+=enemies[i].boss?10:2;gainExp(enemies[i].exp);playSound('ult');
     // 被动: 燃魂 - 击杀恢复HP和MP
     var hd=hData();if(hd.extraPassive&&hd.extraPassive.indexOf('燃魂')>=0){hero.hp=Math.min(hero.maxHp,hero.hp+10);hero.mp=Math.min(hero.maxMp,hero.mp+5);}
@@ -1535,6 +1654,8 @@ function init(){
   heroCollection=[hero.cls];
   towerSlots=[null,null,null,null,null];
   towerSlots[hero.towerIdx]=hero.cls;
+  towerHeroStates=[null,null,null,null,null];
+  initTowerHeroState(hero.towerIdx);
   lastCardDropTime=Date.now();
   // 加载图片资源后启动游戏
   loadImages(function(){
@@ -1633,9 +1754,46 @@ function showTowerMenu(towerIdx){
   if(occupied){
     var h = HEROES[occupied];
     var isMain = (towerIdx === hero.towerIdx);
-    html += '<div style="color:'+h.color+';font-size:18px;font-weight:bold;margin-bottom:8px;">'+h.icon+' '+h.cnName+'（'+h.name+'）</div>';
-    html += '<div style="color:#aaa;font-size:12px;margin-bottom:15px;">'+(isMain?'⭐ 主英雄 - '+TOWERS[towerIdx].name+'塔':'已放置在 '+TOWERS[towerIdx].name+' 塔')+'</div>';
-    html += '<div class="btns">';
+    var typeName = h.type==='str'?'力量':(h.type==='agi'?'敏捷':'智力');
+    html += '<div style="color:'+h.color+';font-size:18px;font-weight:bold;margin-bottom:4px;">'+h.icon+' '+h.cnName+'</div>';
+    html += '<div style="color:#aaa;font-size:11px;margin-bottom:6px;">'+h.name+' · ['+typeName+'] · '+h.passive+'</div>';
+    html += '<div style="color:#888;font-size:10px;margin-bottom:8px;">'+(isMain?'⭐ 主英雄':'副英雄')+' · '+TOWERS[towerIdx].name+'塔</div>';
+    // 副英雄显示属性
+    if(!isMain){
+      var towerAtk = Math.floor(hero.atk * 0.5);
+      html += '<div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;">';
+      html += '<div style="background:rgba(255,255,255,0.05);border:1px solid #444;border-radius:8px;padding:6px 12px;font-size:11px;color:#ffd700;">⚔️攻击: '+towerAtk+'</div>';
+      var st = towerHeroStates[towerIdx];
+      if(st){
+        html += '<div style="background:rgba(255,255,255,0.05);border:1px solid #444;border-radius:8px;padding:6px 12px;font-size:11px;color:#4fc3f7;">💙MP: '+Math.floor(st.mp)+'</div>';
+      }
+      html += '</div>';
+      // 技能按钮
+      if(st){
+        html += '<div style="display:flex;gap:10px;justify-content:center;margin:8px 0;">';
+        for(var si=0; si<st.skills.length; si++){
+          var sk = st.skills[si];
+          var onCd = sk.cd > 0;
+          var noMp = st.mp < sk.cost;
+          var clickable = !onCd && !noMp;
+          var borderCol = clickable?(sk.type==='big'?h.color:'#4a90d9'):'#444';
+          var opacity = clickable?'1':'0.5';
+          html += '<div onclick="'+(clickable?'doTowerSkill('+towerIdx+','+si+')':'')+'" style="width:110px;padding:10px;background:'+(clickable?'linear-gradient(180deg,#2a2a4a,#1a1a3a)':'#1a1a2a')+';border:2px solid '+borderCol+';border-radius:12px;text-align:center;cursor:'+(clickable?'pointer':'default')+';opacity:'+opacity+';">';
+          html += '<div style="font-size:24px;">'+sk.ic+'</div>';
+          html += '<div style="font-size:11px;font-weight:bold;color:#fff;margin:3px 0;">'+sk.name+'</div>';
+          if(onCd){
+            html += '<div style="font-size:10px;color:#ff5252;">冷却 '+Math.ceil(sk.cd)+'s</div>';
+          } else if(noMp){
+            html += '<div style="font-size:10px;color:#4fc3f7;">MP不足 ('+sk.cost+')</div>';
+          } else {
+            html += '<div style="font-size:9px;color:#aaa;">消耗 '+sk.cost+' MP</div>';
+          }
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+    }
+    html += '<div class="btns" style="margin-top:10px;">';
     if(!isMain){
       html += '<button onclick="doRemoveFromTower('+towerIdx+')" style="border-color:#ff5252;">撤回英雄</button>';
     }
@@ -1682,6 +1840,11 @@ function closeTowerModal(){
   document.getElementById('tower-modal').classList.remove('show');
   state='playing';
 }
+function doTowerSkill(towerIdx, skillIdx){
+  useTowerHeroSkill(towerIdx, skillIdx);
+  // 刷新菜单显示
+  showTowerMenu(towerIdx);
+}
 function doPlaceOnTower(towerIdx, classKey){
   placeHeroOnTower(towerIdx, classKey);
   closeTowerModal();
@@ -1694,8 +1857,10 @@ function doRemoveFromTower(towerIdx){
 }
 function doMoveHeroTo(towerIdx){
   towerSlots[hero.towerIdx] = null; // 旧位置清空
+  towerHeroStates[hero.towerIdx] = null;
   hero.towerIdx = towerIdx;
   towerSlots[towerIdx] = hero.cls; // 新位置放主英雄
+  initTowerHeroState(towerIdx);
   moveCd = 3;
   checkSynergy();
   var tx=TOWERS[towerIdx].x*W,ty=TOWERS[towerIdx].y*H;
