@@ -900,7 +900,7 @@ function enterDungeon(d,level){
 
 function completeDungeon(){
   var d=dungeonActive,lvl=dungeonEnemy.level,s=getDungeonStats(d,lvl);
-  var expGain=Math.floor(s.exp*1.5); // 经验150%
+  var expGain=Math.floor(s.exp*2.5); // 经验250%
   gainExp(expGain);addP(W/2,H/2,'+'+expGain+'EXP!','#4fc3f7',22);
   dungeonCompleted[d.type+'_'+lvl]=true;
   if(dungeonLevels[d.type]===lvl&&lvl<10)dungeonLevels[d.type]++;
@@ -1009,7 +1009,7 @@ function spawnWave(){
 }
 
 function checkEnd(){
-  if(kills>=1500)gameOver('🏆 胜利！击杀1500敌人！');
+  if(kills>=1000)gameOver('🏆 胜利！击杀1000敌人！');
   if(enemies.length>=180)gameOver('敌人超过180!');
   if(hero.hp<=0)gameOver('英雄阵亡!');
 }
