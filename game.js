@@ -1667,6 +1667,11 @@ function init(){
   showToast('英雄: '+hd.icon+' '+hd.cnName+'（'+hd.name+'）');
   // 教程
   setTimeout(function(){ checkTutorial(); }, 1500);
+  // 签到系统初始化
+  updateSigninBtn();
+  if(canSignin()){
+    setTimeout(function(){ showSigninModal(); }, 2500);
+  }
 }
 
 function setupEvents(){
@@ -1925,6 +1930,126 @@ function showCollectionModal(){
 function closeCollectionModal(){
   document.getElementById('collection-modal').classList.remove('show');
   state='playing';
+}
+
+// ====== 每日签到系统 ======
+var SIGNIN_REWARDS = [
+  {day:1, gold:50,  icon:'💰', name:'金币×50'},
+  {day:2, gold:80,  icon:'💎', name:'金币×80'},
+  {day:3, gold:120, icon:'🎁', name:'金币×120'},
+  {day:4, gold:180, icon:'🏆', name:'金币×180'},
+  {day:5, gold:250, icon:'⚡', name:'金币×250'},
+  {day:6, gold:350, icon:'🔥', name:'金币×350'},
+  {day:7, gold:500, icon:'👑', name:'金币×500 + 魔法全满', fullMp:true}
+];
+
+function getSigninData(){
+  try{
+    var d=localStorage.getItem('warcraft_signin');
+    if(!d) return {lastDay:'',streak:0,total:0,claimed:[]};
+    return JSON.parse(d);
+  }catch(e){return {lastDay:'',streak:0,total:0,claimed:[]};}
+}
+function saveSigninData(d){localStorage.setItem('warcraft_signin',JSON.stringify(d));}
+
+function getTodayStr(){
+  var n=new Date();
+  return n.getFullYear()+'-'+(n.getMonth()+1)+'-'+n.getDate();
+}
+
+function canSignin(){
+  var d=getSigninData();
+  return d.lastDay!==getTodayStr();
+}
+
+function doSignin(){
+  if(!canSignin()) return;
+  var d=getSigninData();
+  // 检查是否连续（昨天签过=连续，否则重置）
+  var yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
+  var yStr=yesterday.getFullYear()+'-'+(yesterday.getMonth()+1)+'-'+yesterday.getDate();
+  if(d.lastDay===yStr){
+    d.streak=Math.min(d.streak+1,7);
+  } else if(d.lastDay!==getTodayStr()){
+    d.streak=1; // 断签或首次，重置为1
+  }
+  // 计算奖励
+  var reward=SIGNIN_REWARDS[d.streak-1]||SIGNIN_REWARDS[0];
+  gold+=reward.gold;
+  if(reward.fullMp){hero.mp=hero.maxMp;}
+  d.lastDay=getTodayStr();
+  d.total++;
+  if(d.claimed.indexOf(d.streak)<0) d.claimed.push(d.streak);
+  saveSigninData(d);
+  // 反馈
+  playSound('ult');
+  addP(W/2, H*0.3, '+'+reward.gold+'💰', '#ffd700', 20);
+  if(reward.fullMp){addP(W/2, H*0.25, 'MP全满!', '#4fc3f7', 18);}
+  showToast('签到成功！'+reward.icon+' '+reward.name);
+  updateSigninBtn();
+  closeSigninModal();
+  // 刷新HUD
+  document.getElementById('gold').textContent=gold;
+}
+
+function showSigninModal(){
+  state='paused';
+  var d=getSigninData();
+  var modal=document.getElementById('signin-modal');
+  var grid=document.getElementById('signin-grid');
+  var today=getTodayStr();
+  var canDo=canSignin();
+  // 标题区域
+  var headerHtml='<div style="color:#ffd700;font-size:22px;font-weight:bold;text-shadow:2px 2px 4px #000;">📅 每日签到</div>';
+  headerHtml+='<div style="color:#aaa;font-size:12px;margin-top:4px;">已连续签到 '+d.streak+' 天 | 累计 '+d.total+' 天</div>';
+  document.getElementById('signin-header').innerHTML=headerHtml;
+  // 签到格子
+  var html='';
+  for(var i=0;i<SIGNIN_REWARDS.length;i++){
+    var r=SIGNIN_REWARDS[i];
+    var dayNum=i+1;
+    var isClaimed=d.claimed.indexOf(dayNum)>=0 && d.streak>=dayNum;
+    var isToday=canDo && dayNum===(d.streak>=7?7:d.streak+1);
+    var isFuture=!isClaimed&&!isToday;
+    var bg=isClaimed?'linear-gradient(180deg,#1a3a1a,#0d2a0d)':(isToday?'linear-gradient(180deg,#2a4a7a,#1a2a4a)':'rgba(30,30,40,0.5)');
+    var border=isClaimed?'#4caf50':(isToday?'#ffd700':'#333');
+    var opacity=isFuture?'0.5':'1';
+    html+='<div style="width:80px;padding:10px;background:'+bg+';border:2px solid '+border+';border-radius:10px;text-align:center;opacity:'+opacity+';'+(isToday?'animation:pulse 1.5s infinite;':'')+'">';
+    html+='<div style="font-size:9px;color:#888;margin-bottom:2px;">第'+dayNum+'天</div>';
+    html+='<div style="font-size:28px;">'+(isClaimed?'✅':r.icon)+'</div>';
+    html+='<div style="font-size:10px;font-weight:bold;color:'+(isClaimed?'#4caf50':(isToday?'#ffd700':'#aaa'))+';">'+r.name+'</div>';
+    if(isToday) html+='<div style="font-size:8px;color:#ffd700;margin-top:2px;">← 今天</div>';
+    html+='</div>';
+  }
+  grid.innerHTML=html;
+  // 签到按钮
+  var btnHtml='';
+  if(canDo){
+    btnHtml='<button onclick="doSignin()" style="padding:12px 36px;background:linear-gradient(180deg,#ffd700,#ff9800);border:3px solid #ffe082;border-radius:20px;color:#000;font-size:16px;font-weight:bold;cursor:pointer;animation:pulse 1.5s infinite;">✅ 立即签到</button>';
+  } else {
+    btnHtml='<div style="color:#4caf50;font-size:15px;font-weight:bold;">✅ 今日已签到</div><div style="color:#888;font-size:11px;margin-top:4px;">明天记得再来哦！</div>';
+  }
+  document.getElementById('signin-btn-area').innerHTML=btnHtml;
+  modal.classList.add('show');
+}
+
+function closeSigninModal(){
+  document.getElementById('signin-modal').classList.remove('show');
+  state='playing';
+}
+
+function updateSigninBtn(){
+  var btn=document.getElementById('btn-signin');
+  if(!btn) return;
+  if(canSignin()){
+    btn.style.borderColor='#ffd700';
+    btn.style.animation='pulse 1.5s infinite';
+    btn.innerHTML='📅 签到!';
+  } else {
+    btn.style.borderColor='#555';
+    btn.style.animation='none';
+    btn.innerHTML='📅 已签';
+  }
 }
 
 window.onload=init;
