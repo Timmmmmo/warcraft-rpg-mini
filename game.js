@@ -356,6 +356,8 @@ function collectHero(classKey){
     var h = HEROES[classKey];
     showToast('🎉 收集到 '+h.icon+' '+h.cnName+'（'+h.name+'）');
     playSound('ult');
+    // 每日任务: 收集英雄
+    updateTaskProgress('collect2',heroCollection.length);
   } else {
     // 重复获得 → 小量经验补偿
     gainExp(20);
@@ -1148,6 +1150,8 @@ function completeDungeon(){
   dungeonCompleted[d.type+'_'+lvl]=true;
   if(dungeonLevels[d.type]===lvl&&lvl<10)dungeonLevels[d.type]++;
   dungeonEnemy=null;dungeonActive=null;playSound('ult');showToast('副本完成!');
+  // 每日任务: 副本完成
+  addTaskProgress('dungeon1',1);
 }
 function failDungeon(){dungeonEnemy=null;dungeonActive=null;showToast('副本失败!');}
 
@@ -1610,6 +1614,8 @@ function update(){
     for(var si=0;si<st.skills.length;si++) if(st.skills[si].cd>0) st.skills[si].cd-=0.016;
   }
   for(var i=enemies.length-1;i>=0;i--){enemies[i].update();if(enemies[i].hp<=0){kills++;gold+=enemies[i].boss?10:2;gainExp(enemies[i].exp);playSound('ult');
+    // 每日任务: 击杀计数
+    addTaskProgress('kill50',1);addTaskProgress('kill200',1);
     // 被动: 燃魂 - 击杀恢复HP和MP
     var hd=hData();if(hd.extraPassive&&hd.extraPassive.indexOf('燃魂')>=0){hero.hp=Math.min(hero.maxHp,hero.hp+10);hero.mp=Math.min(hero.maxMp,hero.mp+5);}
     // 被动: 剑意 - 击杀叠加攻击力
@@ -1636,7 +1642,7 @@ function update(){
     }
   }
   if(dungeonActive){dungeonTimer-=0.016;if(dungeonTimer<=0)failDungeon();}
-  waveT-=0.016;if(waveT<=0){wave++;waveT=10;spawnWave();}
+  waveT-=0.016;if(waveT<=0){wave++;waveT=10;spawnWave();updateTaskProgress('wave10',wave);}
   if(shake>0)shake*=0.85;if(shake<0.5)shake=0;checkEnd();updateUI();
 }
 function loop(){update();draw();requestAnimationFrame(loop);}
@@ -1969,7 +1975,7 @@ function doSignin(){
   var yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
   var yStr=yesterday.getFullYear()+'-'+(yesterday.getMonth()+1)+'-'+yesterday.getDate();
   if(d.lastDay===yStr){
-    d.streak=Math.min(d.streak+1,7);
+    d.streak=d.streak>=7?1:d.streak+1; // 第7天后循环回第1天
   } else if(d.lastDay!==getTodayStr()){
     d.streak=1; // 断签或首次，重置为1
   }
@@ -1988,6 +1994,9 @@ function doSignin(){
   showToast('签到成功！'+reward.icon+' '+reward.name);
   updateSigninBtn();
   closeSigninModal();
+  // 每日任务: 签到追踪
+  var sd=getSigninData();
+  updateTaskProgress('sign7',sd.streak);
   // 刷新HUD
   document.getElementById('gold').textContent=gold;
 }
@@ -2050,6 +2059,112 @@ function updateSigninBtn(){
     btn.style.animation='none';
     btn.innerHTML='📅 已签';
   }
+}
+
+// ====== 每日任务系统 ======
+var DAILY_TASKS = [
+  {id:'kill50',   name:'击杀50个敌人',    target:50,  icon:'💀', reward:{gold:30}},
+  {id:'kill200',  name:'击杀200个敌人',   target:200, icon:'☠️', reward:{gold:80}},
+  {id:'wave10',   name:'存活到第10波',     target:10,  icon:'🌊', reward:{gold:50}},
+  {id:'dungeon1', name:'完成1次副本',      target:1,  icon:'⚔️', reward:{gold:60}},
+  {id:'collect2', name:'收集2个英雄',      target:2,  icon:'📚', reward:{gold:40}},
+  {id:'sign7',    name:'连续签到7天',      target:7,  icon:'📅', reward:{gold:200}}
+];
+
+function getDailyTaskData(){
+  try{
+    var d=localStorage.getItem('warcraft_daily_task');
+    if(!d) return {date:'',progress:{},claimed:{}};
+    return JSON.parse(d);
+  }catch(e){return {date:'',progress:{},claimed:{}};}
+}
+function saveDailyTaskData(d){localStorage.setItem('warcraft_daily_task',JSON.stringify(d));}
+
+function resetDailyTasksIfNeeded(){
+  var d=getDailyTaskData();
+  var today=getTodayStr();
+  if(d.date!==today){
+    d={date:today,progress:{},claimed:{}};
+    saveDailyTaskData(d);
+  }
+}
+
+function updateTaskProgress(taskId, value){
+  resetDailyTasksIfNeeded();
+  var d=getDailyTaskData();
+  var task=DAILY_TASKS.find(function(t){return t.id===taskId;});
+  if(!task) return;
+  if(d.claimed[taskId]) return; // 已领奖
+  var cur=d.progress[taskId]||0;
+  d.progress[taskId]=Math.min(Math.max(cur,value),task.target);
+  saveDailyTaskData(d);
+  // 检查是否完成
+  if(d.progress[taskId]>=task.target && !d.claimed[taskId]){
+    showToast('🎯 任务完成: '+task.icon+' '+task.name);
+    playSound('ult');
+  }
+}
+
+function addTaskProgress(taskId, delta){
+  resetDailyTasksIfNeeded();
+  var d=getDailyTaskData();
+  var cur=d.progress[taskId]||0;
+  updateTaskProgress(taskId, cur+delta);
+}
+
+function claimTaskReward(taskId){
+  resetDailyTasksIfNeeded();
+  var d=getDailyTaskData();
+  var task=DAILY_TASKS.find(function(t){return t.id===taskId;});
+  if(!task||d.claimed[taskId]||!d.progress[taskId]||d.progress[taskId]<task.target) return;
+  d.claimed[taskId]=true;
+  saveDailyTaskData(d);
+  gold+=task.reward.gold;
+  document.getElementById('gold').textContent=gold;
+  addP(W/2,H*0.35,'+'+task.reward.gold+'💰','#ffd700',18);
+  playSound('ult');
+  showToast('🎉 领取奖励: +'+task.reward.gold+'金币');
+  showTaskModal(); // 刷新面板
+}
+
+function showTaskModal(){
+  state='paused';
+  resetDailyTasksIfNeeded();
+  var d=getDailyTaskData();
+  var modal=document.getElementById('task-modal');
+  var list=document.getElementById('task-list');
+  var html='';
+  for(var i=0;i<DAILY_TASKS.length;i++){
+    var t=DAILY_TASKS[i];
+    var prog=d.progress[t.id]||0;
+    var isComplete=prog>=t.target;
+    var isClaimed=!!d.claimed[t.id];
+    var pct=Math.min(100,Math.floor(prog/t.target*100));
+    var bg=isClaimed?'#1a3a1a':(isComplete?'#2a4a3a':'#1a1a2e');
+    var border=isClaimed?'#4caf50':(isComplete?'#ffd700':'#333');
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px;margin-bottom:8px;background:'+bg+';border:2px solid '+border+';border-radius:12px;">';
+    html+='<div style="font-size:28px;width:36px;text-align:center;">'+t.icon+'</div>';
+    html+='<div style="flex:1;text-align:left;">';
+    html+='<div style="color:#fff;font-size:13px;font-weight:bold;">'+t.name+'</div>';
+    html+='<div style="background:#222;border-radius:3px;height:6px;margin-top:4px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+(isComplete?'#4caf50':'#4a90d9')+';border-radius:3px;transition:width .3s;"></div></div>';
+    html+='<div style="color:#888;font-size:10px;margin-top:2px;">'+Math.min(prog,t.target)+'/'+t.target+' ('+pct+'%)</div>';
+    html+='</div>';
+    if(isClaimed){
+      html+='<div style="color:#4caf50;font-size:13px;font-weight:bold;">✅</div>';
+    } else if(isComplete){
+      html+='<button onclick="claimTaskReward(\''+t.id+'\')" style="padding:6px 14px;background:linear-gradient(180deg,#ffd700,#ff9800);border:2px solid #ffe082;border-radius:12px;color:#000;font-size:11px;font-weight:bold;cursor:pointer;">领取</button>';
+    } else {
+      html+='<div style="color:#666;font-size:10px;">+'+t.reward.gold+'💰</div>';
+    }
+    html+='</div>';
+  }
+  list.innerHTML=html;
+  modal.classList.add('show');
+}
+
+function closeTaskModal(){
+  document.getElementById('task-modal').classList.remove('show');
+  state='playing';
 }
 
 window.onload=init;
