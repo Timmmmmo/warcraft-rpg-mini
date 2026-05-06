@@ -16,7 +16,45 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
 .top .val{color:#ffd700;font-weight:bold}
 .logo{position:absolute;top:42px;left:50%;transform:translateX(-50%);color:#ffd700;font-size:14px;font-weight:bold;text-shadow:0 0 10px rgba(255,215,0,0.5);z-index:18;pointer-events:none;opacity:0.8;letter-spacing:2px;}
 .bot{position:absolute;bottom:0;left:0;width:100%;padding:10px 8px;background:linear-gradient(0deg,rgba(0,0,0,.95),rgba(0,0,0,.7));display:flex;justify-content:center;gap:10px;border-top:2px solid #4a90d9;z-index:20}
-.sk{width:68px;height:68px;border-radius:12px;border:3px solid #555;background:linear-gradient(180deg,#2a2a2a,#1a1a1a);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .2s}
+/* 按钮样式优化 - 触控友好 */
+.mid-btn,.lvl-btn,.btns button,.card,#tut-skip,#tut-next{
+  min-width:48px;
+  min-height:48px;
+  font-size:16px; /* 移动端最小字体 */
+  transition:all .2s ease;
+  cursor:pointer;
+}
+/* Hover 效果 */
+.mid-btn:hover,.lvl-btn:hover,.btns button:hover,.card:hover{
+  border-color:#ffd700;
+  box-shadow:0 0 15px rgba(255,215,0,0.4);
+  transform:translateY(-2px);
+}
+/* 点击反馈动画 */
+.mid-btn:active,.lvl-btn:active,.btns button:active,.card:active{
+  transform:scale(0.95);
+  box-shadow:0 0 8px rgba(255,215,0,0.3);
+}
+/* 技能按钮增强 */
+.sk{
+  width:68px;
+  height:68px;
+  border-radius:12px;
+  border:3px solid #555;
+  background:linear-gradient(180deg,#2a2a2a,#1a1a1a);
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  position:relative;
+  transition:all .2s;
+  min-width:48px;
+  min-height:48px;
+}
+.sk:hover{transform:scale(1.08);border-color:#4a90d9;box-shadow:0 0 20px rgba(74,144,217,0.5);}
+.sk:active{transform:scale(0.92);}
 .sk.on{border-color:#4a90d9;background:linear-gradient(180deg,#2a4a7a,#1a2a4a);box-shadow:0 0 12px rgba(74,144,217,.5)}
 .sk.off{opacity:.4;border-color:#333}
 .sk .ic{font-size:24px;line-height:1}.sk .nm{font-size:9px;margin-top:3px;opacity:.9}
@@ -40,7 +78,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
 @keyframes fadeInUp{from{opacity:0;transform:translate(-50%,-40%)}to{opacity:1;transform:translate(-50%,-50%)}}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes bounceIn{0%{transform:scale(0)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
 .tutorial-highlight{animation:pulse 1.5s infinite}
+.bounce-in{animation:bounceIn 0.3s ease-out}
+.shake{animation:shake 0.3s ease-out}
 .wave-ann{position:absolute;top:28%;left:50%;transform:translate(-50%,-50%);font-size:30px;font-weight:bold;text-shadow:3px 3px 6px #000;display:none;pointer-events:none;z-index:50;text-align:center;color:#ff6f00}
 .wave-ann.boss{color:#ff4444;font-size:38px}
 .gameover{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:200;flex-direction:column;overflow:hidden}

@@ -4,6 +4,11 @@ var state = 'playing';
 var gold = 50, wave = 1, waveT = 0.5, kills = 0, shake = 0;
 var moveCd = 0, showRangeTimer = 0;
 
+// ====== 连击系统 ======
+var combo = 0, comboTimer = 0, comboMult = 1;
+var COMBO_TIMEOUT = 3; // 秒内击杀保持连击
+var COMBO_MULT = [1, 1.2, 1.5, 2, 2.5, 3]; // 连击倍率
+
 // ====== 图片资源加载 ======
 var IMAGES = {};
 var imagesLoaded = false;
@@ -1194,8 +1199,13 @@ function selectHero(key){
 function gainExp(a){hero.exp+=a;while(hero.exp>=hero.expNeed){hero.exp-=hero.expNeed;levelUp();}}
 function levelUp(){hero.lv++;hero.expNeed=Math.floor(100*Math.pow(hero.lv,1.15));hero.maxHp+=25;hero.hp=hero.maxHp;hero.atk+=4;hero.def+=2;
   var hd=hData();if(hd.extraPassive&&hd.extraPassive.indexOf('剑意')>=0){hero.atk+=1;hero.killStacks=Math.min((hero.killStacks||0)+1,50);}
-  var hp=hPos();addP(hp.x,hp.y-35,'LEVEL UP!','#ffd700',20);playSound('ult');
-  var hp=hPos();addP(hp.x,hp.y-35,'LEVEL UP!','#ffd700',20);playSound('ult');
+  var hp=hPos();
+  addP(hp.x,hp.y-35,'⭐ LEVEL UP! ⭐','#ffd700',24);
+  addP(hp.x,hp.y+5,'Lv.'+hero.lv,'#fff',16);
+  playSound('ult');
+  // 升级震动效果
+  document.getElementById('app').classList.add('shake');
+  setTimeout(function(){document.getElementById('app').classList.remove('shake');},300);
   if(hero.lv===10&&hero.promo===0)showPromo();if(hero.lv===20&&hero.promo===1)showPromo();if(hero.lv===30&&hero.promo===2)showPromo();
 }
 
@@ -1591,6 +1601,28 @@ function drawHero(){
   // 蓝条
   ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(x-bw/2-1,y+sz+47,bw+2,4);
   ctx.fillStyle='#2196f3';ctx.fillRect(x-bw/2,y+sz+48,bw*(hero.mp/hero.maxMp),3);
+  
+  // 连击显示
+  if(combo >= 2){
+    var comboScale = 1 + Math.sin(Date.now()/100) * 0.1;
+    ctx.save();
+    ctx.translate(x, y - sz - 50);
+    ctx.scale(comboScale, comboScale);
+    ctx.font='bold 20px Arial';
+    ctx.textAlign='center';
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    ctx.fillText('x'+combo, 1, 1);
+    ctx.fillStyle = combo >= 10 ? '#ff1744' : (combo >= 5 ? '#ff9800' : '#ffd700');
+    ctx.fillText('x'+combo, 0, 0);
+    ctx.font='bold 12px Arial';
+    ctx.fillStyle='#fff';
+    ctx.fillText('COMBO', 0, 16);
+    if(comboMult > 1){
+      ctx.fillStyle='#4caf50';
+      ctx.fillText('x'+comboMult+' EXP', 0, 30);
+    }
+    ctx.restore();
+  }
 }
 
 function draw(){
@@ -1606,6 +1638,14 @@ function draw(){
 function update(){
   if(state!=='playing')return;if(moveCd>0)moveCd-=0.016;if(showRangeTimer>0)showRangeTimer--;if(adCooldown>0)adCooldown-=0.016;
   if(hero.hp>0)autoAtk();if(hero.mp<hero.maxMp)hero.mp+=getMpRegen()/60;for(var i=0;i<hero.skills.length;i++)if(hero.skills[i].cd>0)hero.skills[i].cd-=0.016;
+  // 连击计时衰减
+  if(comboTimer > 0){
+    comboTimer -= 0.016;
+    if(comboTimer <= 0){
+      combo = 0;
+      comboMult = 1;
+    }
+  }
   // 副英雄攻击+CD
   towerHeroesAutoAtk();
   for(var ti=0;ti<towerHeroStates.length;ti++){
@@ -1613,7 +1653,22 @@ function update(){
     if(!st||ti===hero.towerIdx) continue;
     for(var si=0;si<st.skills.length;si++) if(st.skills[si].cd>0) st.skills[si].cd-=0.016;
   }
-  for(var i=enemies.length-1;i>=0;i--){enemies[i].update();if(enemies[i].hp<=0){kills++;gold+=enemies[i].boss?10:2;gainExp(enemies[i].exp);playSound('ult');
+  for(var i=enemies.length-1;i>=0;i--){enemies[i].update();if(enemies[i].hp<=0){
+    // 连击系统
+    combo++;
+    comboTimer = COMBO_TIMEOUT;
+    comboMult = COMBO_MULT[Math.min(combo, COMBO_MULT.length-1)];
+    if(combo >= 3){
+      var bonus = Math.floor(enemies[i].exp * (comboMult - 1));
+      gainExp(bonus);
+      addP(enemies[i].x*W, enemies[i].y*H-20, 'x'+combo+' COMBO!', '#ff9800', 18);
+      if(combo % 5 === 0){
+        var goldBonus = Math.floor(combo / 5) * 10;
+        gold += goldBonus;
+        addP(W/2, H*0.3, '+'+goldBonus+'💰 金币奖励', '#ffd700', 16);
+      }
+    }
+    kills++;gold+=enemies[i].boss?10:2;gainExp(enemies[i].exp);playSound('ult');
     // 每日任务: 击杀计数
     addTaskProgress('kill50',1);addTaskProgress('kill200',1);
     // 被动: 燃魂 - 击杀恢复HP和MP
@@ -2030,7 +2085,16 @@ function showSigninModal(){
     if(isToday) html+='<div style="font-size:8px;color:#ffd700;margin-top:2px;">← 今天</div>';
     html+='</div>';
   }
-  grid.innerHTML=html;
+  // 签到进度条
+  var progressPct = Math.min(100, Math.floor((d.streak / 7) * 100));
+  var progressHtml = '<div style="width:100%;margin:8px 0 12px;">';
+  progressHtml += '<div style="display:flex;justify-content:space-between;color:#888;font-size:10px;margin-bottom:4px;">';
+  progressHtml += '<span>连续签到</span><span>'+d.streak+'/7 天</span></div>';
+  progressHtml += '<div style="background:#222;border-radius:6px;height:12px;overflow:hidden;border:1px solid #444;">';
+  progressHtml += '<div style="height:100%;width:'+progressPct+'%;background:linear-gradient(90deg,#4a90d9,#ffd700);border-radius:6px;transition:width .5s;"></div></div>';
+  progressHtml += '<div style="color:#ffd700;font-size:10px;margin-top:4px;text-align:center;">'+(d.streak>=7?'🏆 满7天！奖励最大化':'💡 连续签到7天奖励500金币+MP全满')+'</div>';
+  progressHtml += '</div>';
+  grid.innerHTML = grid.innerHTML + progressHtml;
   // 签到按钮
   var btnHtml='';
   if(canDo){
