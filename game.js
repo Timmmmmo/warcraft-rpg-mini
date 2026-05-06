@@ -784,13 +784,78 @@ DungeonEnemy.prototype.draw=function(){
   ctx.fillText(Math.ceil(dungeonTimer)+'s',x,y+sz+25);
 };
 
-// ====== 粒子 ======
-function Particle(x,y,t,c,s){this.x=x;this.y=y;this.t=t;this.c=c;this.s=s||14;this.vy=-2;this.a=1;}
-Particle.prototype.update=function(){this.y+=this.vy;this.vy+=0.08;this.a-=0.025;return this.a>0;};
-Particle.prototype.draw=function(){ctx.save();ctx.globalAlpha=this.a;ctx.font='bold '+this.s+'px Arial';ctx.textAlign='center';ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.strokeText(this.t,this.x,this.y);ctx.fillStyle=this.c;ctx.fillText(this.t,this.x,this.y);ctx.restore();};
-function addP(x,y,t,c,s){particles.push(new Particle(x,y,t,c,s));}
+// ====== 粒子对象池 (性能优化) ======
+var particlePool = [];
+var MAX_POOL = 200;
+function getParticle(){
+  if(particlePool.length > 0) return particlePool.pop();
+  return {x:0,y:0,t:'',c:'',s:14,vy:-2,a:1,active:false};
+}
+function recycleParticle(p){if(particlePool.length<MAX_POOL)particlePool.push(p);}
+function Particle(x,y,t,c,s){this.x=x;this.y=y;this.t=t;this.c=c;this.s=s||14;this.vy=-2;this.a=1;this.active=true;}
+Particle.prototype.update=function(){
+  if(!this.active)return false;
+  this.y+=this.vy;this.vy+=0.08;this.a-=0.025;
+  if(this.a<=0){this.active=false;recycleParticle(this);return false;}
+  return true;
+};
+Particle.prototype.draw=function(){
+  if(!this.active)return;
+  ctx.save();ctx.globalAlpha=this.a;ctx.font='bold '+this.s+'px Arial';ctx.textAlign='center';ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.strokeText(this.t,this.x,this.y);ctx.fillStyle=this.c;ctx.fillText(this.t,this.x,this.y);ctx.restore();
+};
+function addP(x,y,t,c,s){
+  if(particles.length>=150)return; // 粒子数量上限防卡顿
+  particles.push(new Particle(x,y,t,c,s));
+}
 
-// ====== 持续效果 ======
+// ====== 性能监控 ======
+var fps=60,frameCount=0,lastFpsTime=Date.now();
+function updateFPS(){
+  frameCount++;var now=Date.now();
+  if(now-lastFpsTime>=1000){fps=frameCount;frameCount=0;lastFpsTime=now;}
+}
+
+// ====== 离屏Canvas缓存 (地图预渲染) ======
+var mapCache=null,mapCtx=null;
+function initMapCache(){
+  // 离屏canvas缓存地图，只渲染一次
+  mapCache=document.createElement('canvas');mapCtx=mapCache.getContext('2d');
+  var mc=mapCtx,cW=mapCache.width=W,cH=mapCache.height=H;
+  // 背景
+  var bg=mc.createLinearGradient(0,0,cW,cH);bg.addColorStop(0,'#0f1f0f');bg.addColorStop(0.5,'#1a2a1a');bg.addColorStop(1,'#0d1b0d');
+  mc.fillStyle=bg;mc.fillRect(0,0,cW,cH);
+  // 网格
+  mc.strokeStyle='rgba(50,80,50,0.12)';mc.lineWidth=1;
+  for(var gx=0;gx<cW;gx+=50){mc.beginPath();mc.moveTo(gx,0);mc.lineTo(gx,cH);mc.stroke();}
+  for(var gy=0;gy<cH;gy+=50){mc.beginPath();mc.moveTo(0,gy);mc.lineTo(cW,gy);mc.stroke();}
+  // 路径
+  mc.save();mc.shadowColor='rgba(139,119,80,0.5)';mc.shadowBlur=15;
+  function mcp(p,col,w){mc.strokeStyle=col;mc.lineWidth=w;mc.lineCap='round';mc.lineJoin='round';mc.beginPath();mc.moveTo(p[0].x*cW,p[0].y*cH);for(var i=1;i<p.length;i++)mc.lineTo(p[i].x*cW,p[i].y*cH);mc.closePath();mc.stroke();}
+  mcp(PATHS.outer,'rgba(120,90,50,0.6)',32);mc.restore();
+  mcp(PATHS.outer,'rgba(80,60,30,0.8)',20);
+  mc.save();mc.shadowColor='rgba(80,80,160,0.4)';mc.shadowBlur=12;
+  mcp(PATHS.inner,'rgba(60,60,120,0.5)',26);mc.restore();
+  mcp(PATHS.inner,'rgba(40,40,100,0.7)',16);
+}
+function drawMap(){
+  if(mapCache){ctx.drawImage(mapCache,0,0);}else{drawMapRaw();}
+}
+function drawMapRaw(){
+  // 背景
+  var bg=ctx.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#0f1f0f');bg.addColorStop(0.5,'#1a2a1a');bg.addColorStop(1,'#0d1b0d');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // 网格
+  ctx.strokeStyle='rgba(50,80,50,0.12)';ctx.lineWidth=1;
+  for(var gx=0;gx<W;gx+=50){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
+  for(var gy=0;gy<H;gy+=50){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+  // 路径
+  ctx.save();ctx.shadowColor='rgba(139,119,80,0.5)';ctx.shadowBlur=15;
+  drawPath(PATHS.outer,'rgba(120,90,50,0.6)',32);ctx.restore();
+  drawPath(PATHS.outer,'rgba(80,60,30,0.8)',20);
+  ctx.save();ctx.shadowColor='rgba(80,80,160,0.4)';ctx.shadowBlur=12;
+  drawPath(PATHS.inner,'rgba(60,60,120,0.5)',26);ctx.restore();
+  drawPath(PATHS.inner,'rgba(40,40,100,0.7)',16);
+}// ====== 持续效果 ======
 function LastingEffect(type,x,y,aoe,dmg,dur){this.type=type;this.x=x;this.y=y;this.aoe=aoe;this.dmg=dmg;this.life=dur||120;this.maxLife=this.life;this.tick=0;}
 LastingEffect.prototype.update=function(){
   this.life--;this.tick++;
@@ -1372,6 +1437,7 @@ function updateUI(){
   document.getElementById('gold').textContent=gold;document.getElementById('wave').textContent=wave;
   document.getElementById('kills').textContent=kills;document.getElementById('enemies').textContent=enemies.length;
   document.getElementById('enemies').style.color=enemies.length>150?'#f44336':enemies.length>120?'#ff9800':'#ffd700';
+  document.getElementById('fps-display').textContent='⚡'+fps+'FPS';
   var hd=hData();document.getElementById('class-skin').textContent=hd.avatar;document.getElementById('class-name').textContent=hd.cnName;
   document.getElementById('class-sub').textContent='【'+hd.title+'】'+hd.name;
   document.getElementById('passive-skill').textContent=hd.extraPassive||'';
@@ -1767,13 +1833,15 @@ function update(){
   waveT-=0.016;if(waveT<=0){wave++;waveT=10;spawnWave();updateTaskProgress('wave10',wave);}
   if(shake>0)shake*=0.85;if(shake<0.5)shake=0;checkEnd();updateUI();
 }
-function loop(){update();draw();requestAnimationFrame(loop);}
+function loop(){updateFPS();update();draw();requestAnimationFrame(loop);}
 
 // ====== 初始化 ======
 function init(){
   canvas=document.getElementById('game');ctx=canvas.getContext('2d');
   var app=document.getElementById('app');W=canvas.width=app.clientWidth;H=canvas.height=app.clientHeight;
   initAudio();
+  initMapCache(); // 初始化地图缓存
+  updateFPS(); // 初始化FPS计数
   // 随机选择英雄
   var heroKeys=Object.keys(HEROES);
   hero.cls=heroKeys[Math.floor(Math.random()*heroKeys.length)];
