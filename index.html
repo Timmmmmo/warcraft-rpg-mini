@@ -14,7 +14,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
 .top{position:absolute;top:0;left:0;width:100%;padding:8px 10px;background:linear-gradient(180deg,rgba(0,0,0,.92),rgba(0,0,0,.6));display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #4a90d9;z-index:20}
 .top .item{color:#fff;font-size:11px;display:flex;align-items:center;gap:3px}
 .top .val{color:#ffd700;font-weight:bold}
-.logo{position:absolute;top:42px;left:50%;transform:translateX(-50%);color:#ffd700;font-size:14px;font-weight:bold;text-shadow:0 0 10px rgba(255,215,0,0.5);z-index:18;pointer-events:none;opacity:0.8;letter-spacing:2px;}
+.logo{position:absolute;top:50px;left:50%;transform:translateX(-50%);color:#ffd700;font-size:13px;font-weight:bold;text-shadow:0 0 10px rgba(255,215,0,0.5);z-index:15;pointer-events:none;opacity:0.7;letter-spacing:2px;white-space:nowrap;}
 .bot{position:absolute;bottom:0;left:0;width:100%;padding:10px 8px;background:linear-gradient(0deg,rgba(0,0,0,.95),rgba(0,0,0,.7));display:flex;justify-content:center;gap:10px;border-top:2px solid #4a90d9;z-index:20}
 /* 按钮样式优化 - 触控友好 */
 .mid-btn,.lvl-btn,.btns button,.card,#tut-skip,#tut-next{
@@ -112,8 +112,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
 .gameover.go-defeat .go-title{color:#ff4444}
 @keyframes goParticle{0%{transform:translateY(0) scale(1);opacity:0.8}50%{opacity:0.4}100%{transform:translateY(-80px) scale(0);opacity:0}}
 .toast{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#ffd700;font-size:24px;font-weight:bold;text-shadow:2px 2px 4px #000;display:none;pointer-events:none;z-index:60;white-space:nowrap}
-.mid{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:15}
-.mid-btn{padding:8px 16px;background:rgba(0,0,0,.8);border:2px solid #555;border-radius:18px;color:#fff;font-size:12px;cursor:pointer}
+.mid{position:absolute;bottom:100px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:15;flex-wrap:wrap;justify-content:center;max-width:95%}
+.mid-btn{padding:6px 12px;background:rgba(0,0,0,.85);border:2px solid #555;border-radius:16px;color:#fff;font-size:11px;cursor:pointer;white-space:nowrap}
 .mid-btn:hover{border-color:#ffd700}
 .move-cd{position:absolute;bottom:145px;left:50%;transform:translateX(-50%);color:#ff6f00;font-size:14px;font-weight:bold;z-index:15;background:rgba(0,0,0,0.8);padding:5px 12px;border-radius:10px;border:2px solid #ff9800;display:none}
 .lvl-panel{display:none;margin-top:12px}
@@ -125,7 +125,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
 .btns button:hover{border-color:#ffd700}
 .lvl-btn.completed{opacity:.5;background:#1a3a1a;border-color:#4caf50;cursor:not-allowed}
 .hero-select-scroll{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:10px;max-width:450px}
-@media(max-width:400px){.hero-select-scroll{grid-template-columns:repeat(3,1fr);max-width:280px}}
+@media(max-width:400px){.hero-select-scroll{grid-template-columns:repeat(3,1fr);max-width:280px}.mid{bottom:110px;gap:6px}.mid-btn{padding:5px 8px;font-size:10px}.sk{width:60px;height:60px}.sk .ic{font-size:20px}.sk .nm{font-size:8px}}
 
 /* 教程系统优化 */
 #tutorial-overlay{background:rgba(0,0,0,0.6);backdrop-filter:blur(3px)}
