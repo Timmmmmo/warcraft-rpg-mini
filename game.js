@@ -1797,6 +1797,7 @@ function init(){
   setTimeout(function(){ checkTutorial(); }, 1500);
   // 签到系统初始化
   updateSigninBtn();
+  updateTaskBtn(); // 任务按钮初始化
   if(canSignin()){
     setTimeout(function(){ showSigninModal(); }, 2500);
   }
@@ -2192,6 +2193,32 @@ function updateSigninBtn(){
   }
 }
 
+function updateTaskBtn(){
+  var btn=document.getElementById('btn-task');
+  if(!btn) return;
+  resetDailyTasksIfNeeded();
+  var d=getDailyTaskData();
+  // 检查是否有可领取的任务
+  var hasClaimable=false;
+  for(var i=0;i<DAILY_TASKS.length;i++){
+    var t=DAILY_TASKS[i];
+    var prog=d.progress[t.id]||0;
+    if(prog>=t.target && !d.claimed[t.id]){
+      hasClaimable=true;
+      break;
+    }
+  }
+  if(hasClaimable){
+    btn.style.borderColor='#ffd700';
+    btn.style.animation='pulse 1.5s infinite';
+    btn.innerHTML='🎯 领奖!';
+  } else {
+    btn.style.borderColor='#ff9800';
+    btn.style.animation='none';
+    btn.innerHTML='🎯 任务';
+  }
+}
+
 // ====== 每日任务系统 ======
 var DAILY_TASKS = [
   {id:'kill50',   name:'击杀50个敌人',    target:50,  icon:'💀', reward:{gold:30}},
@@ -2241,6 +2268,7 @@ function addTaskProgress(taskId, delta){
   var d=getDailyTaskData();
   var cur=d.progress[taskId]||0;
   updateTaskProgress(taskId, cur+delta);
+  updateTaskBtn(); // 实时更新按钮状态
 }
 
 function claimTaskReward(taskId){
