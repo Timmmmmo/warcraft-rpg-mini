@@ -125,6 +125,24 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
 .btns button:hover{border-color:#ffd700}
 .lvl-btn.completed{opacity:.5;background:#1a3a1a;border-color:#4caf50;cursor:not-allowed}
 .hero-select-scroll{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:10px;max-width:450px}
+/* 排行榜样式 */
+.lb-title{color:#ffd700;font-size:20px;font-weight:bold;margin-bottom:12px;text-shadow:0 0 10px rgba(255,215,0,0.5)}
+.lb-header{display:flex;justify-content:space-between;padding:6px 8px;background:rgba(255,215,0,0.1);border-radius:8px;color:#aaa;font-size:11px;font-weight:bold;border-bottom:1px solid rgba(255,215,0,0.2);margin-bottom:6px}
+.lb-header span,.lb-top span,.lb-row span{flex:1;text-align:center}
+.lb-top{background:rgba(255,215,0,0.12);border-radius:8px;padding:8px 6px;margin-bottom:4px;font-weight:bold;font-size:13px}
+.lb-row{display:flex;justify-content:space-between;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.04);margin-bottom:3px;font-size:12px;color:#ccc}
+.lb-empty{color:#666;font-size:13px;padding:20px 0}
+/* 首充礼包样式 */
+.rm-title{color:#e91e63;font-size:24px;font-weight:bold;margin-bottom:12px;text-shadow:0 0 10px rgba(233,30,99,0.5)}
+.rm-desc{color:#aaa;font-size:14px;margin-bottom:16px}
+.rm-items{background:rgba(233,30,99,0.1);border:1px solid rgba(233,30,99,0.3);border-radius:12px;padding:14px;margin-bottom:16px;text-align:left}
+.rm-items div{color:#fff;font-size:14px;margin:6px 0}
+.rm-price{color:#ffd700;font-size:32px;font-weight:bold;margin-bottom:16px}
+.rm-btns{display:flex;gap:12px;justify-content:center}
+.rm-btns .btn-buy{padding:12px 28px;background:linear-gradient(180deg,#e91e63,#c2185b);border:2px solid #f48fb1;border-radius:20px;color:#fff;font-size:16px;font-weight:bold;cursor:pointer}
+.rm-btns .btn-buy:hover{transform:scale(1.05);box-shadow:0 0 15px rgba(233,30,99,0.5)}
+.rm-btns .btn-close{padding:12px 24px;background:#2a2a4a;border:2px solid #555;border-radius:20px;color:#aaa;font-size:14px;cursor:pointer}
+#btn-recharge.done{opacity:.5;cursor:not-allowed;border-color:#555!important}
 @media(max-width:400px){.hero-select-scroll{grid-template-columns:repeat(3,1fr);max-width:280px}.mid{bottom:110px;gap:6px}.mid-btn{padding:5px 8px;font-size:10px}.sk{width:60px;height:60px}.sk .ic{font-size:20px}.sk .nm{font-size:8px}}
 
 /* 教程系统优化 */
@@ -194,7 +212,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
       </div>
     </div>
     <div class="move-cd" id="move-cd"></div>
-    <div class="mid"><div class="mid-btn" id="btn-signin" onclick="if(state==='playing')showSigninModal()" style="border-color:#ffd700;">📅 签到!</div><div class="mid-btn" id="btn-task" onclick="if(state==='playing')showTaskModal()" style="border-color:#ff9800;">🎯 任务</div><div class="mid-btn" id="btn-dungeon">⚔️ 副本</div><div class="mid-btn" id="btn-collection" style="border-color:#ffd700;">📚 图鉴</div><div class="mid-btn" id="btn-ad" onclick="watchAd()" style="border-color:#4a90d9;">📺 增加魔法</div></div>
+    <div class="mid"><div class="mid-btn" id="btn-signin" onclick="if(state==='playing')showSigninModal()" style="border-color:#ffd700;">📅 签到!</div><div class="mid-btn" id="btn-task" onclick="if(state==='playing')showTaskModal()" style="border-color:#ff9800;">🎯 任务</div><div class="mid-btn" id="btn-dungeon">⚔️ 副本</div><div class="mid-btn" id="btn-collection" style="border-color:#ffd700;">📚 图鉴</div><div class="mid-btn" id="btn-recharge" onclick="buyFirstRecharge()" style="border-color:#e91e63;">💎 首充</div><div class="mid-btn" id="btn-lb" onclick="showLeaderboard()" style="border-color:#4caf50;">🏆 排行</div><div class="mid-btn" id="btn-ad" onclick="watchAd()" style="border-color:#4a90d9;">📺 增加魔法</div></div>
     <div class="bot">
       <div class="sk on" data-skill="0"><span class="ic">💫</span><span class="nm">小必杀</span></div>
       <div class="sk on" data-skill="1"><span class="ic">⚡</span><span class="nm">大必杀</span></div>
@@ -216,7 +234,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
         </div>
         <div class="go-reason" id="go-reason"></div>
         <div class="go-synergy" id="go-synergy"></div>
-        <button onclick="location.reload()">⚔️ 再来一局</button>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+          <button onclick="shareGame()" style="padding:10px 20px;font-size:14px;background:linear-gradient(180deg,#4caf50,#2e7d32);border:2px solid #66bb6a;border-radius:20px;">📤 分享战绩</button>
+          <button onclick="showLeaderboard()" style="padding:10px 20px;font-size:14px;background:linear-gradient(180deg,#ff9800,#e65100);border:2px solid #ffb74d;border-radius:20px;">🏆 排行榜</button>
+        </div>
+        <button onclick="location.reload()" style="margin-top:8px;">⚔️ 再来一局</button>
       </div>
     </div>
   </div>
@@ -310,6 +332,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:
         <button id="tut-next" onclick="nextTutorialStep()">下一步 ➡️</button>
       </div>
     </div>
+  </div>
+
+  <!-- 排行榜弹窗 -->
+  <div class="modal" id="lb-modal" style="z-index:200;" onclick="if(event.target===this){closeLeaderboard();}">
+    <div style="background:#1a1a2e;border:3px solid #ffd700;border-radius:20px;padding:20px;text-align:center;max-width:380px;max-height:85vh;overflow-y:auto;">
+      <div id="lb-content"></div>
+      <div class="btns" style="margin-top:12px;">
+        <button onclick="closeLeaderboard()">返回游戏</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 首充礼包弹窗 -->
+  <div class="modal" id="recharge-modal" style="z-index:250;" onclick="if(event.target===this){closeRechargeModal();}">
+    <div id="rm-content"></div>
   </div>
 </div>
 <script src="game.js"></script>

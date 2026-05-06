@@ -1398,6 +1398,7 @@ function checkEnd(){
 }
 function gameOver(r){
   state='gameover';
+  saveScore(); // 保存到排行榜
   var goDiv=document.getElementById('gameover');
   var isWin = r.indexOf('胜利')>=0;
   goDiv.className = 'gameover show '+(isWin?'go-victory':'go-defeat');
@@ -1869,6 +1870,9 @@ function init(){
   if(canSignin()){
     setTimeout(function(){ showSigninModal(); }, 2500);
   }
+  updateRechargeBtn(); // 首充按钮状态
+  // 注册分享回调（微信JSSDK可用时）
+  if(typeof WeChatShare==='function')WeChatShare(getShareText);
 }
 
 function setupEvents(){
@@ -2392,6 +2396,92 @@ function showTaskModal(){
 function closeTaskModal(){
   document.getElementById('task-modal').classList.remove('show');
   state='playing';
+}
+
+// ====== 本地排行榜系统 ======
+function getLeaderboard(){try{return JSON.parse(localStorage.getItem('warcraft_leaderboard')||'[]');}catch(e){return [];}}
+function saveLeaderboard(d){localStorage.setItem('warcraft_leaderboard',JSON.stringify(d));}
+function calcScore(){return kills+wave*50+hero.lv*20+heroCollection.length*100;}
+function saveScore(){
+  var lb=getLeaderboard();
+  var hd=hData();
+  var entry={kills:kills,wave:wave,lv:hero.lv,collect:heroCollection.length,score:calcScore(),hero:hd.cnName,time:Date.now()};
+  lb.push(entry);lb.sort(function(a,b){return b.score-a.score;});
+  lb=lb.slice(0,20);saveLeaderboard(lb);
+  return lb;
+}
+function showLeaderboard(){
+  var lb=getLeaderboard();
+  var html='<div class="lb-title">🏆 本地排行榜 TOP20</div>';
+  html+='<div class="lb-header"><span>排名</span><span>英雄</span><span>波数</span><span>击杀</span><span>分数</span></div>';
+  for(var i=0;i<lb.length;i++){
+    var e=lb[i],rank=i+1;
+    var medal=rank===1?'🥇':(rank===2?'🥈':(rank===3?'🥉':rank+'.'));
+    var cls=rank<=3?'top':'row';
+    html+='<div class="lb-'+cls+'"><span>'+medal+'</span><span>'+e.hero+'</span><span>'+e.wave+'</span><span>'+e.kills+'</span><span>'+e.score+'</span></div>';
+  }
+  if(lb.length===0)html+='<div class="lb-empty">暂无记录，开始游戏创造历史！</div>';
+  document.getElementById('lb-content').innerHTML=html;
+  document.getElementById('lb-modal').classList.add('show');
+}
+function closeLeaderboard(){document.getElementById('lb-modal').classList.remove('show');}
+
+// ====== 分享功能 ======
+function getShareText(){
+  var hd=hData();var sc=calcScore();
+  var isWin=kills>=1000;
+  var txt=isWin?'🏆 我在《刀盾要杀1000个》中通关了！':'⚔️ 我在《刀盾要杀1000个》中坚持到第'+wave+'波，击杀'+kills+'敌人！';
+  txt+='\n英雄:'+hd.cnName+' Lv.'+hero.lv+' | 收集:'+heroCollection.length+'个英雄 | 分数:'+sc;
+  txt+='\n快来挑战我！👉 https://timmmmmo.github.io/warcraft-rpg-mini/';
+  return txt;
+}
+function shareGame(){
+  var txt=getShareText();
+  // 优先使用微信开放标签（需微信SDK），fallback到剪贴板
+  if(navigator.share&&navigator.canShare){n    navigator.share({title:'刀盾要杀1000个',text:txt,url:'https://timmmmmo.github.io/warcraft-rpg-mini/'}).catch(function(){
+      copyToClipboard(txt);
+    });
+  } else {
+    copyToClipboard(txt);
+  }
+}
+function copyToClipboard(txt){
+  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){showToast('📋 已复制到剪贴板，分享给朋友吧！');}).catch(function(){showToast('复制失败，请手动复制');});
+  } else {
+    var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('📋 已复制到剪贴板，分享给朋友吧！');
+  }
+}
+
+// ====== 首充礼包 ======
+var firstRechargeDone=!!localStorage.getItem('warcraft_first_recharge');
+function buyFirstRecharge(){
+  // 模拟充值（网页版无真实支付，弹窗确认）
+  showRechargeModal();
+}
+function showRechargeModal(){
+  var html='<div class="rm-title">💎 首充礼包</div>';
+  html+='<div class="rm-desc">限时特惠！仅需1元，即可获得：</div>';
+  html+='<div class="rm-items"><div>💰 500金币</div><div>⚡ 经验药水×3</div><div>🎁 稀有英雄宝箱×1</div></div>';
+  html+='<div class="rm-price">¥1.00</div>';
+  html+='<div class="rm-btns"><button class="btn-buy" onclick="confirmFirstRecharge()">确认购买</button><button class="btn-close" onclick="closeRechargeModal()">稍后</button></div>';
+  document.getElementById('rm-content').innerHTML=html;
+  document.getElementById('recharge-modal').classList.add('show');
+}
+function confirmFirstRecharge(){
+  // 发放奖励
+  gold+=500;gainExp(300);
+  // 随机给一个未拥有的英雄
+  var owned=heroCollection;var pool=Object.keys(HEROES).filter(function(k){return owned.indexOf(k)<0;});
+  if(pool.length>0){var rng=pool[Math.floor(Math.random()*pool.length)];heroCollection.push(rng);showToast('🎁 获得 '+HEROES[rng].icon+' '+HEROES[rng].cnName+'！');}
+  localStorage.setItem('warcraft_first_recharge','1');firstRechargeDone=true;
+  updateRechargeBtn();
+  closeRechargeModal();
+  showToast('💎 首充礼包购买成功！');
+}
+function closeRechargeModal(){document.getElementById('recharge-modal').classList.remove('show');}
+function updateRechargeBtn(){
+  var btn=document.getElementById('recharge-btn');
+  if(firstRechargeDone){btn.textContent='已充值';btn.classList.add('done');btn.disabled=true;}else{btn.textContent='首充';btn.classList.remove('done');btn.disabled=false;}
 }
 
 window.onload=init;
