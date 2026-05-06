@@ -9,6 +9,10 @@ var combo = 0, comboTimer = 0, comboMult = 1;
 var COMBO_TIMEOUT = 3; // 秒内击杀保持连击
 var COMBO_MULT = [1, 1.2, 1.5, 2, 2.5, 3]; // 连击倍率
 
+// ====== 暴击系统 ======
+var critRate = 0.15; // 基础暴击率15%
+var critDmgMult = 1.5; // 暴击伤害倍率1.5倍
+
 // ====== 图片资源加载 ======
 var IMAGES = {};
 var imagesLoaded = false;
@@ -613,6 +617,17 @@ function showTutorialStep() {
   document.getElementById('tut-desc').textContent = step.desc;
   document.getElementById('tut-counter').textContent = (tutorialStep + 1) + '/' + TUTORIAL_STEPS.length;
 
+  // 进度点
+  var prog = document.getElementById('tut-progress');
+  var dots = '';
+  for(var i=0;i<TUTORIAL_STEPS.length;i++){
+    var cls='tut-dot';
+    if(i===tutorialStep)cls+=' active';
+    else if(i<tutorialStep)cls+=' done';
+    dots+='<div class="'+cls+'"></div>';
+  }
+  prog.innerHTML=dots;
+
   // 高亮区域
   if (step.highlight) {
     var el = document.querySelector(step.highlight);
@@ -811,9 +826,23 @@ function autoAtk(){
   var hp=hPos(),range=hd.range*Math.min(W,H);
   if(dungeonEnemy){
     var d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*(hero._atkBonus||1)*getSynergyMult()));
+    // 暴击计算
+    var isCrit = Math.random() < critRate;
+    if(isCrit){d=Math.floor(d*critDmgMult);}
     // 法穿: 无视30%护甲
     var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
-    dungeonEnemy.hp-=d;addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,'-'+d,'#ffd700',14);playSound('hit');
+    dungeonEnemy.hp-=d;
+    var critTxt = isCrit?'💥-'+d+' 暴击!':'-'+d;
+    var critColor = isCrit?'#ff4444':'#ffd700';
+    addP(dungeonEnemy.x*W,dungeonEnemy.y*H-20,critTxt,critColor,isCrit?18:14);
+    if(isCrit){
+      // 暴击闪烁特效
+      for(var cj=0;cj<6;cj++){
+        var ca=cj*60*Math.PI/180;
+        addP(dungeonEnemy.x*W+Math.cos(ca)*25,dungeonEnemy.y*H+Math.sin(ca)*25,'💥','#ff4444',12);
+      }
+    }
+    playSound('hit');
     // 吸血
     if(hd2.extraPassive&&hd2.extraPassive.indexOf('吸血')>=0){hero.hp=Math.min(hero.maxHp,hero.hp+Math.floor(d*0.15));}
     if(dungeonEnemy.hp<=0)completeDungeon();return;
@@ -821,12 +850,26 @@ function autoAtk(){
   var t=null,md=Infinity;for(var i=0;i<enemies.length;i++){var e=enemies[i],d=dist(hp.x,hp.y,e.x*W,e.y*H);if(d<range&&d<md){md=d;t=e;}}
   if(t){
     var d=Math.max(1,Math.floor(hero.atk*3.0*getAtkMult()*hero.buff*(hero._atkBonus||1)*getSynergyMult()-t.def));
-    var hd2=hData();if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
+    var hd2=hData();
+    // 暴击计算
+    var isCrit = Math.random() < critRate;
+    if(isCrit){d=Math.floor(d*critDmgMult);}
+    if(hd2.extraPassive&&hd2.extraPassive.indexOf('法穿')>=0){d=Math.max(1,Math.floor(d*1.15));}
     // 感电: 10%概率额外闪电
     if(hd2.extraPassive&&hd2.extraPassive.indexOf('感电')>=0&&Math.random()<0.1){
       d=Math.floor(d*1.5);addP(t.x*W,t.y*H-25,'⚡','#7c4dff',18);
     }
-    t.hp-=d;addP(t.x*W,t.y*H-15,'-'+d,hd.color,12);playSound('hit');
+    t.hp-=d;
+    var critTxt = isCrit?'💥-'+d+' 暴击!':'-'+d;
+    var critColor = isCrit?'#ff4444':hd.color;
+    addP(t.x*W,t.y*H-15,critTxt,critColor,isCrit?16:12);
+    if(isCrit){
+      for(var cj=0;cj<6;cj++){
+        var ca=cj*60*Math.PI/180;
+        addP(t.x*W+Math.cos(ca)*20,t.y*H+Math.sin(ca)*20,'💥','#ff4444',10);
+      }
+    }
+    playSound('hit');
     // 吸血
     if(hd2.extraPassive&&hd2.extraPassive.indexOf('吸血')>=0){hero.hp=Math.min(hero.maxHp,hero.hp+Math.floor(d*0.15));}
   }
@@ -867,12 +910,23 @@ function towerHeroesAutoAtk(){
       var d = Math.max(1, Math.floor(towerAtk * 3.0 * typeAtkMult * hero.buff * getSynergyMult() - target.def));
       // 法穿
       if(h.extraPassive && h.extraPassive.indexOf('法穿')>=0) d = Math.max(1, Math.floor(d*1.15));
+      // 暴击
+      var isCrit = Math.random() < (critRate * 0.8);
+      if(isCrit){d=Math.floor(d*critDmgMult);}
       // 感电
       if(h.extraPassive && h.extraPassive.indexOf('感电')>=0 && Math.random()<0.1){
         d = Math.floor(d*1.5); addP(target.x*W,target.y*H-25,'⚡','#7c4dff',14);
       }
       target.hp -= d;
-      addP(target.x*W, target.y*H-15, '-'+d, h.color, 10);
+      var critTxt = isCrit?'💥-'+d+' 暴击!':'-'+d;
+      var critColor = isCrit?'#ff4444':h.color;
+      addP(target.x*W, target.y*H-15, critTxt, critColor, isCrit?14:10);
+      if(isCrit){
+        for(var cj=0;cj<4;cj++){
+          var ca=cj*90*Math.PI/180;
+          addP(target.x*W+Math.cos(ca)*15,target.y*H+Math.sin(ca)*15,'💥','#ff4444',8);
+        }
+      }
       // 吸血
       if(h.extraPassive && h.extraPassive.indexOf('吸血')>=0){
         hero.hp = Math.min(hero.maxHp, hero.hp + Math.floor(d*0.15));
@@ -1337,7 +1391,20 @@ function updateSkUI(){
     btn.querySelector('.ic').textContent=sk.ic;btn.querySelector('.nm').textContent=sk.name;
     var old=btn.querySelector('.cd');if(old)old.remove();
     var old2=btn.querySelector('.mp-msg');if(old2)old2.remove();
-    if(sk.cd>0){btn.classList.add('off');btn.classList.remove('on');var d=document.createElement('div');d.className='cd';d.textContent=Math.ceil(sk.cd);btn.appendChild(d);}
+    var old3=btn.querySelector('.cd-overlay');if(old3)old3.remove();
+    if(sk.cd>0){
+      btn.classList.add('off');btn.classList.remove('on');
+      // 圆形CD遮罩
+      var d=document.createElement('div');d.className='cd-overlay';
+      d.style.cssText='position:absolute;inset:0;border-radius:9px;overflow:hidden;pointer-events:none;';
+      var pct=sk.cd/sk.maxCd;
+      d.innerHTML='<div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:bold;color:#fff;">'+Math.ceil(sk.cd)+'</div>'+
+        '<svg style="position:absolute;top:0;left:0;width:100%;height:100%;transform:rotate(-90deg);" viewBox="0 0 68 68">'+
+        '<circle cx="34" cy="34" r="31" fill="none" stroke="rgba(74,144,217,0.3)" stroke-width="4"/>'+
+        '<circle cx="34" cy="34" r="31" fill="none" stroke="#4a90d9" stroke-width="4" stroke-dasharray="'+(2*Math.PI*31)+'" stroke-dashoffset="'+(2*Math.PI*31*(1-pct))+'" stroke-linecap="round"/>'+
+        '</svg>';
+      btn.appendChild(d);
+    }
     else if(hero.mp<sk.cost){
       btn.classList.add('off');btn.classList.remove('on');
       var m=document.createElement('div');m.className='mp-msg';m.textContent='等待魔法恢复';m.style.cssText='position:absolute;bottom:-2px;left:0;right:0;font-size:7px;color:#4fc3f7;text-align:center;';
